@@ -32,6 +32,11 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>CLI_V1.1</name>
+			<type>2</type>
+			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_B_CLI/src/V1.1</location>
+		</link>
+		<link>
 			<name>TeamAT_B_Basic</name>
 			<type>2</type>
 			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_B_Basic</location>
