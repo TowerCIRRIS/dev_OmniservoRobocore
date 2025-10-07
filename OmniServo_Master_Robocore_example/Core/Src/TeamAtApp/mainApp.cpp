@@ -152,18 +152,12 @@ int cmd_findServos(const char* argString);
 
 void setup() {
 
-//	omniSequencer.addServo(SLAVE_1_ID);
-	//omniSequencer.addServo(SLAVE_2_ID);
-
 
 	cli_init(&usbSerialOut);
-
 	HAL_Delay(1000);
 
-	//omniRCSeq.addServo(SLAVE_1_ID);
-	omniRCSeq.addServo(1);
+	omniRCSeq.addServo(SLAVE_1_ID);
 
-	//currentServo = omniSequencer.getServo(0);
 	currentRCServo = omniRCSeq.getServo(0);
 
 	// Power up device on port 1
@@ -171,14 +165,11 @@ void setup() {
 
 	// Initialization of the Serial Comm for the servos
 	//OmniServo::servoSerialInit(&huart2, RS485_DIR_GPIO_Port, RS485_DIR_Pin);
+
 	HAL_GPIO_WritePin(RS485_DIR_GPIO_Port, RS485_DIR_Pin, RS485_RX_ENABLE);
 	HAL_UART_Receive_IT(&huart2, (uint8_t*) &uart2_receivedChar, 1);
-	//omniSequencer.resetSlaves();
 	omniRCSeq.resetSlaves();
 
-	//sprintf(main_debugSerialOutBuffer, "OmniServo Test Program Started !\r\n");
-	//HAL_UART_Transmit(&hlpuart1, (uint8_t*)serialOutBuffer, strlen(serialOutBuffer), 1000);
-	//usbSerialOut(debugSerialOutBuffer);
 	myCLI.forcePrint("OmniServo Test Program Started !\r\n");
 }
 
@@ -186,15 +177,11 @@ void loop() {
 	// Update for the communication of the servos
 	//commStatus = OmniServo::updateServoCom();
 
-	//commStatus = omniSequencer.updateServoCom();
 	commStatus = omniRCSeq.updateServoCom();
 	// Dealing with errors with the communication if there are any
 	if (commStatus < 0 && PRINT_TIMEOUT) {
 		sprintf(main_debugSerialOutBuffer, "TIMEOUT #%d\r\n", -commStatus);
 		myCLI.forcePrint(main_debugSerialOutBuffer);
-		//HAL_UART_Transmit(&hlpuart1, (uint8_t*)serialOutBuffer, strlen(serialOutBuffer), 1000);
-		//usbSerialOut(debugSerialOutBuffer);
-
 	}
 
 	// Reading the serial buffer to check for any sent commands
@@ -506,14 +493,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 		uart2Rxstatus = HAL_UART_Receive_IT(&huart2, (uint8_t*) &uart2_receivedChar, 1);
 	}
 
-	//OmniServo::rxUartInterruptHandler(huart);
 	if(huart->Instance == hlpuart1.Instance) {
-//		if (bufferPointer < bufferSize - 1) {
-//			inputBuffer[bufferPointer++] = uart_receivedChar;
-//		}
-		//serialRxCompleteCallback();
 		serial1.rxCompleteCallback(huart->RxXferSize);
-
 	}
 }
 
@@ -532,7 +513,6 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 	{
 		serial1.txCompleteCallback();
 	}
-
 
 	if(huart->Instance == huart2.Instance) {
 		//OmniServo::txUartInterruptHandler(huart);

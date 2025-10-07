@@ -231,20 +231,6 @@ void uart_enableHalfDuplexReceiver(serialPortHandle_t *hSerial)
 		case UART1_ID:
 			HAL_HalfDuplex_EnableReceiver(&hlpuart1);
 			break;
-//		case UART2_ID:
-//			HAL_HalfDuplex_EnableReceiver(&huart2);
-//				break;
-//		case UART3_ID:
-//			HAL_HalfDuplex_EnableReceiver(&huart3);
-//					break;
-		case UART4_ID:
-//			HAL_HalfDuplex_EnableReceiver(&huart4);
-//			HAL_UART_Receive_IT(&huart4, hSerial->rxBuff, 1);
-					break;
-		case UART5_ID:
-//			HAL_HalfDuplex_EnableReceiver(&huart4);
-//			HAL_UART_Receive_IT(&huart4, hSerial->rxBuff, 1);
-					break;
 
 		default:
 			break;
@@ -261,29 +247,7 @@ void uart_startRxInterrupt(serialPortHandle_t *hSerial, int dataLen)
 			HAL_UART_AbortReceive_IT(&hlpuart1);
 			HAL_UART_Receive_IT(&hlpuart1, hSerial->rxBuff, dataLen);
 			break;
-		case UART2_ID:
-//			HAL_UART_AbortReceive_IT(&huart2);
-//			HAL_UART_Receive_IT(&huart2, hSerial->rxBuff, dataLen);
-//				break;
 
-		case UART3_ID:
-//			HAL_UART_AbortReceive_IT(&huart3);
-//
-//			status = HAL_UART_Receive_DMA(&huart3, hSerial->rxBuff, dataLen);
-//			if(status > 0)
-//			{
-//				Error_Handler();
-//			}
-
-					break;
-		case UART4_ID:
-//			HAL_UART_AbortReceive_IT(&huart4);
-//			HAL_UART_Receive_IT(&huart4, hSerial->rxBuff, dataLen);
-					break;
-		case UART5_ID:
-//			HAL_StatusTypeDef HAL_UART_AbortReceive_IT(&huart5);
-//			HAL_UART_Receive_IT(&huart5, hSerial->rxBuff, dataLen);
-					break;
 		default:
 			break;
 	}
@@ -296,18 +260,8 @@ void uart_stopRxInterrupt(serialPortHandle_t *hSerial)
 		case UART1_ID:
 			HAL_UART_AbortReceive_IT(&hlpuart1);
 			break;
-		case UART2_ID:
-//			HAL_UART_AbortReceive_IT(&huart2);
+		default:
 				break;
-		case UART3_ID:
-//			HAL_UART_AbortReceive_IT(&huart3);
-					break;
-		case UART4_ID:
-//			HAL_UART_AbortReceive_IT(&huart4);
-					break;
-		case UART5_ID:
-//			HAL_StatusTypeDef HAL_UART_AbortReceive_IT(&huart5);
-					break;
 	}
 }
 
@@ -340,15 +294,7 @@ void usbSerialOut(const char* outData)
 };
 
 
-//
-//void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-//{
-////	if(huart->Instance == huart1.Instance)
-////	{
-////		gSerial_1_TxBusy = false; // Transmission du message complété.
-////
-////	}
-//}
+
 
 /**
  * @fn void HAL_UART_RxCpltCallback(UART_HandleTypeDef*)
