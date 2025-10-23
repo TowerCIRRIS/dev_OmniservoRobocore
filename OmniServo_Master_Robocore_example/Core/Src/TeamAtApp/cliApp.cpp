@@ -54,6 +54,7 @@ void cli_init( CLI_SERIALOUT_CALLBACK serialOutFunction)
 				  VERBOSE_ON);     // Communicate status on serial port if OFF
 									// ( on is useful for troubleshooting but slower)
 
+
   myCLI.start();  // Start to interpret commands on the serial port.
 }
 
@@ -61,11 +62,13 @@ void cli_init( CLI_SERIALOUT_CALLBACK serialOutFunction)
 int cliAppRun()
 {
 	// On regarde si on a reçu une ligne de commande
-	if(serial1.readToChar(debugSerialReceivedLine,'\r'))
+	int bytesRead = serial1.readToChar(debugSerialReceivedLine,'\r');
+	if(bytesRead)
 	{
 		//debug_newLineReceived = false;
-
 		myCLI.run(debugSerialReceivedLine); // On passe la ligne reçue au cli
+		memset(debugSerialReceivedLine, 0, sizeof(debugSerialReceivedLine));
+
 	}
 
 //	if(uart1_dataReadyFlag)

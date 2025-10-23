@@ -87,6 +87,8 @@ void uartAppInit()
 	serial1.startRxInterrupt(1);
 
 
+
+
 //	// Starting the Serial Comm with the computer
 //	HAL_UART_Receive_IT(&hlpuart1, (uint8_t*) &uart1_receivedChar, 1);
 

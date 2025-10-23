@@ -8,6 +8,8 @@
 #include <ctype.h>
 #include <math.h>
 
+
+#include "at_platformAbstraction_V1_1.h"
 //#include "OmniServoSequencer.h"
 #include "OmniServoRCSequencer.h"
 #include "uartApp.h"
@@ -64,7 +66,8 @@
 
 /* ------------------ Functions & Variables for the Example ------------------ */
 void serialReading();
-void switchServo();
+bool parseFloat(const char *s, float &out);
+//void switchServo(int servoId = -1);
 
 
 
@@ -110,19 +113,12 @@ uint8_t servoUart2TxCallback(int dataLen);
 char main_debugSerialOutBuffer[UART1_TX_BUFFER_SIZE];
 
 /* ------------------ Servo Objects Declaration ------------------ */
-//OmniServoSequencer omniSequencer(OMNISERVO_COMM_BUFFER_SIZE,m_uart2TxBuffer,
-//			&servoUart2TxCallback,
-//			&HAL_GetTick
-//			);
-
-OmniServoRCSequencer omniRCSeq(OMNISERVO_COMM_BUFFER_SIZE,m_uart2TxBuffer,
+OmniServoRCSequencer omniSequencer(OMNISERVO_COMM_BUFFER_SIZE,m_uart2TxBuffer,
 			&servoUart2TxCallback,
 			&HAL_GetTick
 			);
 
-//OmniServo* currentServo;
-
-actuator_Omniservo* currentRCServo;
+//actuator_Omniservo* currentRCServo;
 /* ------------------ Servo Objects Declaration ------------------ */
 
 /* ------------------ Functions & Variables for the Example ------------------ */
@@ -134,17 +130,75 @@ actuator_Omniservo* currentRCServo;
 
 int cmd_getMotorInfo(const char* argString);
 int cmd_findServos(const char* argString);
+int cmd_changeMode(const char* argString);
+int cmd_disableControl(const char* argString);
+int cmd_startControl(const char* argString);
+int cmd_reset360(const char* argString);
+int cmd_setZero(const char* argString);
+int cmd_setZeroReference(const char* argString);
+int cmd_setCurrentAngle(const char* argString);
+int cmd_switchDirection(const char* argString);
+int cmd_setCenterAngle(const char* argString);
+int cmd_setTorqueConstant(const char* argString);
+int cmd_setTurns(const char* argString);
+int cmd_resetSlaves(const char* argString);
+int cmd_setPID(const char* argString);
+int cmd_switchUnits(const char* argString);
+int cmd_togglePrint(const char* argString);
+int cmd_switchServo(const char* argString);
+int cmd_changeServoId(const char* argString);
+int cmd_listServos(const char* argString);
+int cmd_command(const char* argString);
 
 
-    const int numCliCommands = 2;
+    const int numCliCommands = 21;
 	CLI_FUNC_PTR commands_func[numCliCommands]{
     		 &cmd_getMotorInfo,
-			 &cmd_findServos
+			 &cmd_findServos,
+			 &cmd_changeMode,
+			 &cmd_disableControl,
+			 &cmd_startControl,
+			 &cmd_reset360,
+			 &cmd_setZero,
+			 &cmd_setZeroReference,
+			 &cmd_setCurrentAngle,
+			 &cmd_switchDirection,
+			 &cmd_setCenterAngle,
+			 &cmd_setTorqueConstant,
+			 &cmd_setTurns,
+			 &cmd_resetSlaves,
+			 &cmd_setPID,
+			 &cmd_switchUnits,
+			 &cmd_togglePrint,
+			 &cmd_switchServo,
+			 &cmd_changeServoId,
+			 &cmd_listServos,
+			 &cmd_command
+
          };
 
     const char *commands_str[numCliCommands] = {
-    		 "getMotorInfo",
-			 "findServos"
+    		 "getmotorinfo",
+			 "findservos",
+			 "changemode",
+			 "stop",
+			 "start",
+			 "reset360",
+			 "setzero",
+			 "setzeroref",
+			 "setcurrentangle",
+			 "switchdirection",
+			 "setcenterangle",
+			 "settorqueconstant",
+			 "setturns",
+			 "resetslave",
+			 "setpid",
+			 "switchunits",
+			 "toggleprint",
+			 "switchservo",
+			 "changeservoid",
+			 "listservos",
+			 "c"
          };
 
 
@@ -152,32 +206,61 @@ int cmd_findServos(const char* argString);
 
 void setup() {
 
-
 	cli_init(&usbSerialOut);
 	HAL_Delay(1000);
 
-	omniRCSeq.addServo(SLAVE_1_ID);
 
-	currentRCServo = omniRCSeq.getServo(0);
+	myCLI.print("\n\n\r\t-->OmniServo Test Program Started, press button to continue\r\n");
 
 	// Power up device on port 1
 	HAL_GPIO_WritePin(OUT_PORT1_POWER_GPIO_Port, OUT_PORT1_POWER_Pin, GPIO_PIN_SET);
 
 	// Initialization of the Serial Comm for the servos
-	//OmniServo::servoSerialInit(&huart2, RS485_DIR_GPIO_Port, RS485_DIR_Pin);
-
 	HAL_GPIO_WritePin(RS485_DIR_GPIO_Port, RS485_DIR_Pin, RS485_RX_ENABLE);
-	HAL_UART_Receive_IT(&huart2, (uint8_t*) &uart2_receivedChar, 1);
-	omniRCSeq.resetSlaves();
 
-	myCLI.forcePrint("OmniServo Test Program Started !\r\n");
+
+	while(!HAL_GPIO_ReadPin(IN_BUTTON_1_GPIO_Port, IN_BUTTON_1_Pin))
+	{
+
+	}
+
+	HAL_UART_Receive_IT(&huart2, (uint8_t*) &uart2_receivedChar, 1);
+
+	myCLI.print("\r\nSearching for servos...\r\n");
+	int nbServosFound = omniSequencer.pingAndAddAllServos(10,20);
+	sprintf(main_debugSerialOutBuffer, "\r\n-->Number of servos found: %d\r\n", nbServosFound);
+	myCLI.print(main_debugSerialOutBuffer);
+
+	if(nbServosFound == 0)
+	{
+		myCLI.print("\r\n[ERROR]: No servos found !\r\n");
+				while(1);
+	}
+
+	//omniSequencer.addServo(SLAVE_1_ID);
+	actuator_Omniservo* currentServo = omniSequencer.setActiveServoByIdndex(0);
+
+	if(currentServo == NULL)
+	{
+		myCLI.print("\r\n[ERROR]: Servo not added !\r\n");
+		while(1);
+	}
+	else
+	{
+		sprintf(main_debugSerialOutBuffer, "\r\n-->Current Active Servo ID: %d\r\n", currentServo->getMotorID());
+		myCLI.print(main_debugSerialOutBuffer);
+	}
+
+	omniSequencer.resetSlaves();
+
+
 }
 
 void loop() {
-	// Update for the communication of the servos
-	//commStatus = OmniServo::updateServoCom();
 
-	commStatus = omniRCSeq.updateServoCom();
+	// Update for the communication of the servos
+	commStatus = omniSequencer.updateServoCom();
+
 	// Dealing with errors with the communication if there are any
 	if (commStatus < 0 && PRINT_TIMEOUT) {
 		sprintf(main_debugSerialOutBuffer, "TIMEOUT #%d\r\n", -commStatus);
@@ -193,35 +276,456 @@ void loop() {
 		if (HAL_GetTick() - previousMillis5hz >= 200) {
 			previousMillis5hz = HAL_GetTick();
 			if (printValues) {
-				if (currentRCServo->getCurrentUnits() == DEGREES) {
+				actuator_Omniservo* currentServo = omniSequencer.activeServo();
+				if (currentServo->getCurrentUnits() == DEGREES) {
 					sprintf(main_debugSerialOutBuffer,
 							"ID: %d Angle : %.2f °  Vitesse : %.2f °/s  Courant : %.3f A  Couple : %.2f Nm  Temp : %.2f °C\r\n",
-							currentRCServo->m_motorID,
-							currentRCServo->getCurrentAngle(),
-							currentRCServo->getCurrentSpeed(),
-							currentRCServo->getCurrentCurrent(),
-							currentRCServo->getCurrentTorque(),
-							currentRCServo->getCurrentTemp());
+							currentServo->getMotorID(),
+							currentServo->getCurrentAngle(),
+							currentServo->getCurrentSpeed(),
+							currentServo->getCurrentCurrent(),
+							currentServo->getCurrentTorque(),
+							currentServo->getCurrentTemp());
 				}
 				else {
 					sprintf(main_debugSerialOutBuffer,
 							"ID: %d Angle : %.2f rad  Vitesse : %.2f rad/s  Courant : %.3f A  Couple : %.2f Nm  Temp : %.2f °C\r\n",
-							currentRCServo->m_motorID,
-							currentRCServo->getCurrentAngle(),
-							currentRCServo->getCurrentSpeed(),
-							currentRCServo->getCurrentCurrent(),
-							currentRCServo->getCurrentTorque(),
-							currentRCServo->getCurrentTemp());
+							currentServo->getMotorID(),
+							currentServo->getCurrentAngle(),
+							currentServo->getCurrentSpeed(),
+							currentServo->getCurrentCurrent(),
+							currentServo->getCurrentTorque(),
+							currentServo->getCurrentTemp());
 				}
-				//HAL_UART_Transmit(&hlpuart1, (uint8_t*)serialOutBuffer, strlen(serialOutBuffer), 1000);
-				//usbSerialOut(debugSerialOutBuffer);
+;
 				myCLI.forcePrint(main_debugSerialOutBuffer);
 			}
 		}
 	}
 }
 
-void serialReading() {
+//TODO change active servo vs all servos
+int cmd_changeMode(const char* argString)
+{
+
+  	myCLI.print("\n\n\rChanging mode to : ");
+	 if(strcmp(argString, "v") == 0)
+	 {
+		myCLI.print("\n\r-->Velocity mode\r\n");
+		omniSequencer.activeServo()->setOperatingMode(operatingMode_t::CONTROL_MODE_VELOCITY_ANGULAR);
+	 }
+	 else if(strcmp(argString, "p") == 0)
+	 {
+		myCLI.print( "\n\r-->ABS position mode\r\n");
+		omniSequencer.activeServo()->setOperatingMode(operatingMode_t::CONTROL_MODE_POSITION_ANGULAR);
+	 }
+	 else if(strcmp(argString, "i") == 0)
+	 {
+		 myCLI.print("\n\r-->Incremental position mode\r\n");
+		 omniSequencer.activeServo()->setOperatingMode(operatingMode_t::CONTROL_MODE_POSITION_INCREMENT_ANGULAR);
+	 }
+	 else
+	 {
+		 myCLI.print("\n\r-->Argument not recognized\r\n");
+		 myCLI.print("\t v: Velocity mode\r\n");
+		 myCLI.print("\t p: Absolute position mode\r\n");
+		 myCLI.print("\t i: Incremental position mode\r\n");
+	 }
+
+	return 0;
+}
+
+int cmd_disableControl(const char* argString)
+{
+	omniSequencer.activeServo()->disableControl();
+
+	myCLI.print("\n\r-->Control disabled\r\n");
+
+	return 0;
+}
+
+int cmd_startControl(const char* argString)
+{
+	omniSequencer.activeServo()->enableControl();
+
+	myCLI.print("\n\r-->Control started\r\n");
+
+	return 0;
+}
+
+int cmd_reset360(const char* argString)
+{
+	omniSequencer.activeServo()->resetTo360();
+
+	myCLI.print("\n\r-->Angle reset 0-360\r\n");
+
+	return 0;
+}
+
+int cmd_setZero(const char* argString)
+{
+	omniSequencer.activeServo()->setZeroPosition();
+	myCLI.print("\n\r-->Zero position set to current angle\r\n");
+
+	return 0;
+}
+
+int cmd_setZeroReference(const char* argString)
+{
+	float bufferData = atof(argString);
+	omniSequencer.activeServo()->setZeroPosition(bufferData);
+	char output[100];
+
+	sprintf(output, "\n\r-->Zero position set to: %.2f\r\n", bufferData);
+
+	myCLI.print(output);
+
+	return 0;
+}
+
+int cmd_setCurrentAngle(const char* argString)
+{
+	float bufferData = atof(argString);
+	omniSequencer.activeServo()->setCurrentAngle(bufferData);
+	char output[100];
+
+	sprintf(output, "\n\r-->Setting current angle to: %.2f\r\n", bufferData);
+	myCLI.print(output);
+
+	return 0;
+}
+
+int cmd_switchDirection(const char* argString)
+{
+	omniSequencer.activeServo()->switchRef();
+	myCLI.print("\n\r-->Switching the reference direction\r\n");
+
+	return 0;
+}
+
+int cmd_setCenterAngle(const char* argString)
+{
+	float bufferData = atof(argString);
+	omniSequencer.activeServo()->setInitialCenterAngle(bufferData);
+	char output[100];
+
+	sprintf(output, "\n\r-->Setting center angle to: %.2f\r\n", bufferData);
+	myCLI.print(output);
+
+	return 0;
+}
+
+int cmd_setTorqueConstant(const char* argString)
+{
+	float bufferData = atof(argString);
+	omniSequencer.activeServo()->sendTorqueConstant(bufferData);
+	char output[100];
+
+	sprintf(output, "\n\r-->Sending torque constant: %.2f\r\n", bufferData);
+	myCLI.print(output);
+
+	return 0;
+}
+
+int cmd_setTurns(const char* argString)
+{
+	int16_t bufferData = (int16_t)atoi(argString);
+	omniSequencer.activeServo()->setTurns(bufferData);
+	char output[100];
+
+	sprintf(output, "\n\r-->Setting number of turns to: %d\r\n", (int)bufferData);
+	myCLI.print(output);
+
+	return 0;
+}
+
+int cmd_resetSlaves(const char* argString)
+{
+	if(strcmp(argString, "all") == 0)
+	{
+		omniSequencer.resetSlaves();
+		myCLI.print("\n\r-->Resetting all servos\r\n");
+	}
+	else
+	{
+//TODO
+//		int8_t bufferData = (int8_t)atoi(argString);
+//		actuator_Omniservo* servo = omniRCSeq.getServoByID(bufferData);
+//		if(servo == NULL)
+//		{
+//			myCLI.print("\n\r-->No servo with this ID\r\n");
+//			return -1;
+//		}}
+//		servo->resetServo();
+	}
+
+	return 0;
+}
+
+int cmd_setPID(const char* argString)
+{
+	char input[50];
+	float floatGain;
+
+	float kp, ki, kd;
+	int state = 0;
+	if(argString[0] == 'v')
+	{
+		myCLI.print("\n\n\rChanging Velocity PID Values\n");
+	}
+	else if(argString[0] == 'p')
+	{
+		myCLI.print("\n\n\rChanging Position PID Values\n");
+	}
+	else
+	{
+		myCLI.print("\n\r--> Argument not recognized\r\n");
+		myCLI.print("\t p: Position PID\r\n");
+		myCLI.print("\t v: Velocity PID\r\n");
+		return ERROR_ARGUMENT_ERROR;
+	}
+
+	uint32_t startTime = atGetSysTick_ms();
+	myCLI.print("\n\r<-- Enter kp:");
+	while(atGetSysTick_ms() - startTime < 10000)
+	{
+
+		if(serial1.readToChar(input,'\r') )
+		{
+			if(isdigit(input[0]))
+			{
+				floatGain = atof(input);
+				if(state == 0)
+				{
+					myCLI.print(input);
+					kp = floatGain;
+					state = 1;
+					startTime = atGetSysTick_ms();
+					myCLI.print("\n\r<-- Enter ki:");
+
+				}
+				else if(state == 1)
+				{
+					myCLI.print(input);
+					ki = floatGain;
+					state = 2;
+					startTime = atGetSysTick_ms();
+					myCLI.print("\n\r<-- Enter kd:");
+
+				}
+				else if(state == 2)
+				{
+					myCLI.print(input);
+					kd = floatGain;
+					state = 3;
+					char output[100];
+					sprintf(output, "\n\r--> Sending Pos. PID : P:%.2f I:%.2f D:%.2f\r\n",kp,ki,kd);
+					myCLI.print(output);
+
+					omniSequencer.activeServo()->setKpGain(kp);
+					omniSequencer.activeServo()->setKiGain(ki);
+					omniSequencer.activeServo()->setKdGain(kd);
+
+					return 0;
+				}
+			}
+			else
+			{
+				myCLI.print("\n\n\r--> [ERROR]: Argument not a number, aborting PID settings\r\n\n");
+				return ERROR_ARGUMENT_ERROR;
+			}
+
+		}
+	}
+
+	myCLI.print("\n\n\r--> [ERROR]: Time out, aborting PID settings\r\n\n");
+	return ERROR_ARGUMENT_ERROR;
+
+
+}
+
+
+int cmd_switchUnits(const char* argString)
+{
+	if(strcmp(argString, "degrees") == 0 || strcmp(argString, "deg") == 0 || strcmp(argString, "d") == 0)
+	{
+		omniSequencer.activeServo()->setWorkingUnits(DEGREES);
+		myCLI.print("\n\r-->Switching to degrees.\r\n");
+	}
+	else if(strcmp(argString, "radians") == 0 || strcmp(argString, "rad") == 0 || strcmp(argString, "r") == 0)
+	{
+		omniSequencer.activeServo()->setWorkingUnits(RADIANS);
+		myCLI.print("\n\r-->Switching to radians.\r\n");
+	}
+	else
+	{
+		myCLI.print("\n\r-->Missing parameter\r\n");
+		myCLI.print("\n\r\t [Degrees]: use degrees, deg or d");
+		myCLI.print("\n\r\t [Radians]: use radians, rad or r\n\r");
+	}
+
+	return 0;
+}
+
+
+int cmd_togglePrint(const char* argString)
+{
+	if(strcmp(argString, "on") == 0 )
+	{
+		printValues = true;
+		myCLI.print("\n\r-->Print Data: On\r\n");
+	}
+	else if(strcmp(argString, "off") == 0 )
+	{
+		printValues = false;
+		myCLI.print("\n\r-->Print Data: Off\r\n");
+	}
+	else
+	{
+		if (printValues)
+		{
+			printValues = false;
+			myCLI.print("\n\r-->Print Data: Off\r\n");
+		}
+		else {
+			printValues = true;
+			myCLI.print("\n\r-->Print Data: On\r\n");
+		}
+	}
+
+	return 0;
+}
+
+int cmd_switchServo(const char* argString)
+{
+	char output[100];
+
+	if(isdigit(argString[0]))
+	{
+		int servoId = atoi(argString);
+		sprintf(output, "\n\r<-- Trying switch to ID#%d", servoId);
+		myCLI.print(output);
+		omniSequencer.setActiveServo(servoId);
+		sprintf(output, "\n\r-->Active Servo ID#%d", omniSequencer.activeServo()->getMotorID());
+		myCLI.print(output);
+	}
+	else if(argString[0] == '\0')
+	{
+		sprintf(output, "\n\r<-- Trying switch to next available servo");
+		myCLI.print(output);
+		omniSequencer.setNextActiveServo();
+		sprintf(output, "\n\r-->Active Servo ID#%d", omniSequencer.activeServo()->getMotorID());
+		myCLI.print(output);
+	}
+	else
+	{
+		myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+		myCLI.print("\n\n\r\tOption 1: Enter servo ID");
+		myCLI.print("\n\r\tOption 2: Enter nothing to switch to the next available servo\r\n\n");
+		return ERROR_ARGUMENT_ERROR;
+	}
+
+	return 0;
+}
+
+int cmd_changeServoId(const char* argString)
+{
+	char output[100];
+
+	if(isdigit(argString[0]))
+	{
+		int servoId = atoi(argString);
+		sprintf(output, "\n\r<-- Trying switch to ID of motor #%d to #%d", omniSequencer.activeServo()->getMotorID(), servoId);
+		myCLI.print(output);
+		omniSequencer.activeServo()->changeIDrequest(servoId);
+	}
+	else
+	{
+		myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+		myCLI.print("\n\n\r\tOption 1: Enter desired servo ID\r\n\n");
+		return ERROR_ARGUMENT_ERROR;
+	}
+
+	return 0;
+}
+
+int cmd_listServos(const char* argString)
+{
+	char output[130];
+
+	myCLI.print("\n\n\r ---- List of connected servos ----\r\n");
+	delay(50);
+
+	for(int i=0; i <omniSequencer.getNbServos(); i++)
+	{
+		sprintf(output, "\n\r\t Servo [%d]: ID[%d]", i, omniSequencer.getServoByIndex(i)->getMotorID());
+		myCLI.print(output);
+		delay(50);
+		if(omniSequencer.getServoByIndex(i) == omniSequencer.activeServo())
+		{
+			sprintf(output," (Active)");
+			myCLI.print(output);
+			delay(50);
+		}
+
+	}
+	myCLI.print("\n\n\r ---- End of List ----\r\n");
+	delay(50);
+
+	return 0;
+
+}
+
+
+bool parseFloat(const char *s, float &out) {
+
+    if (s == nullptr) return false;
+
+    char *end = nullptr;
+
+    // use strtof to parse float and get end pointer
+    float val = strtof(s, &end);
+
+    // no conversion performed (e.g. "-abc" -> end == s)
+    if (end == s) return false;
+
+    // skip trailing whitespace
+    while (*end != '\0' && isspace((unsigned char)*end)) ++end;
+    // if there are remaining non-space chars, reject (e.g. "12.3abc")
+    if (*end != '\0') return false;
+
+    out = val;
+    return true;
+}
+
+int cmd_command(const char* argString)
+{
+	float commandValue = 0;
+	char output[130];
+
+	if(parseFloat(argString, commandValue)){
+
+		sprintf(output, "\n\rSending %f to ID[%d]", commandValue, omniSequencer.activeServo()->getMotorID());
+		myCLI.print(output);
+
+		omniSequencer.activeServo()->sendCommand(commandValue);
+	}
+	else
+	{
+		myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+		return ERROR_ARGUMENT_ERROR;
+	}
+
+
+	return 0;
+}
+
+
+
+//				sprintf(debugSerialOutBuffer, "Sending number of turns : %d\r\n", (int16_t)bufferData);
+//				currentRCServo->setTurns((int16_t)bufferData);
+
+//void serialReading() {
 //	if (inputBuffer[bufferPointer-1] == '\n' || inputBuffer[bufferPointer-1] == '\r' ) {
 //		inputBuffer[bufferPointer++] = '\0';
 //		bufferData = atof(inputBuffer);
@@ -230,171 +734,11 @@ void serialReading() {
 //		if (bufferData == 0 && !isdigit(inputBuffer[0])) {
 //			switch (inputBuffer[0])
 //			{
-//			case 115: // (s) Check for speed mode
-//				sprintf(debugSerialOutBuffer, "Speed mode\r\n");
-//				//currentServo->changeMode(SPEED);
-//				currentRCServo->setOperatingMode(operatingMode_t::CONTROL_MODE_VELOCITY_ANGULAR);
-//				break;
-//			case 97: // (a) Check for abs position mode
-//				sprintf(debugSerialOutBuffer, "ABS position mode\r\n");
-//				//currentServo->changeMode(ABS_POSITION);
-//				currentRCServo->setOperatingMode(operatingMode_t::CONTROL_MODE_POSITION_ANGULAR);
-//				break;
-//			case 105: // (i) Check for incremental position mode
-//				sprintf(debugSerialOutBuffer, "Incremental position mode\r\n");
-//				//currentServo->changeMode(INC_POSITION);
-//				currentRCServo->setOperatingMode(operatingMode_t::CONTROL_MODE_POSITION_INCREMENT_ANGULAR);
-//				break;
-//			case 112: // (p) Check power off
-//				sprintf(debugSerialOutBuffer, "Off mode\r\n");
-//				//currentServo->changeMode(DISABLED);
-//				currentRCServo->disableControl();
-//				break;
-//			case 114: // (r) Check for reset of angles
-//				sprintf(debugSerialOutBuffer, "Reset angles\r\n");
-//				//currentServo->resetTo360();
-//				currentRCServo->resetTo360();
-//				break;
-//			case 111: // (o) Check for zero setting
-//				sprintf(debugSerialOutBuffer, "Setting zero reference\r\n");
-//				//currentServo->setOrigin();
-//				currentRCServo->setZeroPosition();
-//				break;
-//			case 108: // (l) Check for zero setting @ given angle
-//				getZeroAngleFlag = true;
-//				sprintf(debugSerialOutBuffer, "Changing zero reference angle\r\nEnter angle : \r\n");
-//				break;
-//			case 106: // (j) Check for zero setting with current angle
-//				getCurrentAngleFlag = true;
-//				sprintf(debugSerialOutBuffer, "Changing current angle\r\nEnter angle : \r\n");
-//				break;
-//			case 107: // (k) Check for reference direction switching
-//				sprintf(debugSerialOutBuffer, "Switching the reference direction\r\n");
-//				//currentServo->switchRef();
-//				currentRCServo->switchRef();
-//				break;
-//			case 116: // (t) Check for center angle
-//				getCenterAngleFlag = true;
-//				sprintf(debugSerialOutBuffer, "Changing center angle\r\nEnter angle : \r\n");
-//				break;
-//			case 121: // (y) Check for torque constant
-//				getTorqueConstant = true;
-//				sprintf(debugSerialOutBuffer, "Changing torque constant\r\nEnter torque constant : \r\n");
-//				break;
-//			case 99: // (c) Check for number of turns
-//				getNumberTurns = true;
-//				sprintf(debugSerialOutBuffer, "Changing number of turns\r\nEnter nb turns : \r\n");
-//				break;
-//			case 101: // (e) Check to reset slaves
-//				//OmniServo::resetSlaves();
-//				//omniSequencer.resetSlaves();
-//				omniRCSeq.resetSlaves();
-//				sprintf(debugSerialOutBuffer, "Resetting servos\r\n");
-//				break;
-//			case 110: // (n) Entering PID
-//				PIDinc = 0;
-//				getPIDflag = true;
-//				sprintf(debugSerialOutBuffer, "Changing Pos. PID Values\r\nEnter kp : \r\n");
-//				break;
-//			case 118: // (v) Entering Velocity PID
-//				PIDinc = 0;
-//				getVelocityPIDflag = true;
-//				sprintf(debugSerialOutBuffer, "Changing Vel. PID Values\r\nEnter kp : \r\n");
-//				break;
-//			case 117: // (u) Switching units
-//				//if (currentServo->getCurrentUnits() == DEGREES) {
-//				if (currentRCServo->getCurrentUnits() == DEGREES) {
-//					//currentServo->changeWorkingUnits(RADIANS);
-//					currentRCServo->setWorkingUnits(RADIANS);
-//					sprintf(debugSerialOutBuffer, "Switching to Radians\r\n");
-//				}
-//				else {
-//					//currentServo->changeWorkingUnits(DEGREES);
-//					currentRCServo->setWorkingUnits(DEGREES);
-//					sprintf(debugSerialOutBuffer, "Switching to Degrees\r\n");
-//				}
-//				break;
-//			case 109: // (m) Toggle print
-//				if (printValues) {printValues = false;}
-//				else {printValues = true;}
-//				sprintf(debugSerialOutBuffer, "Toggle printing\r\n");
-//				break;
-//			case 119: // (w) Switch servo
-//				//switchServo();
-//				break;
-//			case 113: // (q) Change ID
-//				//TODO
-//				getIDflag = true;
-//				sprintf(debugSerialOutBuffer, "Enter new motor ID : \r\n");
-//				break;
-//			}
+
 //		}
 //		// Else, read the numerical command
 //		else {
-//			if (getZeroAngleFlag) {
-//				sprintf(debugSerialOutBuffer, "Sending zero reference angle : %.2f\r\n", bufferData);
-//				//currentServo->setOrigin(bufferData);
-//				currentRCServo->setZeroPosition(bufferData);
-//				getZeroAngleFlag = false;
-//			}
-//			else if (getCurrentAngleFlag) {
-//				sprintf(debugSerialOutBuffer, "Sending current angle : %.2f\r\n", bufferData);
-//				currentRCServo->setCurrentAngle(bufferData);
-//				getCurrentAngleFlag = false;
-//			}
-//			else if (getCenterAngleFlag) {
-//				sprintf(debugSerialOutBuffer, "Sending center angle : %.2f\r\n", bufferData);
-//				currentRCServo->setInitialCenterAngle(bufferData);
-//				getCenterAngleFlag = false;
-//			}
-//			else if (getTorqueConstant) {
-//				sprintf(debugSerialOutBuffer, "Sending torque constant : %.2f\r\n", bufferData);
-//				currentRCServo->sendTorqueConstant(bufferData);
-//				getTorqueConstant = false;
-//			}
-//			else if (getNumberTurns) {
-//				sprintf(debugSerialOutBuffer, "Sending number of turns : %d\r\n", (int16_t)bufferData);
-//				currentRCServo->setTurns((int16_t)bufferData);
-//				getNumberTurns = false;
-//			}
-//			else if (getIDflag) { // If we are getting new motor ID
-//				sprintf(debugSerialOutBuffer, "Sending new motor ID : %d\r\n", (uint8_t)bufferData);
-//				//OmniServo::changeMotorID((uint8_t)bufferData);
-//				currentRCServo->changeIDrequest((uint8_t)bufferData);
-//				getIDflag = false;
-//			}
-//			else if (getPIDflag) { // If we are getting PID values
-//				PIDvals[PIDinc] = bufferData;
-//				PIDinc += 1;
-//				if (PIDinc == 1) {sprintf(debugSerialOutBuffer, "Enter kd : \r\n");}
-//				else if (PIDinc == 2) {sprintf(debugSerialOutBuffer, "Enter ki : \r\n");}
-//				if (PIDinc >= 3) {
-//					sprintf(debugSerialOutBuffer, "Sending Pos. PID : P:%.2f D:%.2f I:%.2f\r\n",PIDvals[0],PIDvals[1],PIDvals[2]);
-//					PIDinc = 0;
-//					getPIDflag = false;
-//
-//					currentRCServo->setKpGain(PIDvals[0]);
-//					currentRCServo->setKdGain(PIDvals[1]);
-//					currentRCServo->setKiGain(PIDvals[2]);
-//
-//				}
-//			}
-//			else if (getVelocityPIDflag) { // If we are getting PID values
-//				PIDvals[PIDinc] = bufferData;
-//				PIDinc += 1;
-//				if (PIDinc == 1) {sprintf(debugSerialOutBuffer, "Enter kd : \r\n");}
-//				else if (PIDinc == 2) {sprintf(debugSerialOutBuffer, "Enter ki : \r\n");}
-//				if (PIDinc >= 3) {
-//					sprintf(debugSerialOutBuffer, "Sending Vel. PID : P:%.2f D:%.2f I:%.2f\r\n",PIDvals[0],PIDvals[1],PIDvals[2]);
-//					PIDinc = 0;
-//					getPIDflag = false;
-//
-//					currentRCServo->setVelocityKpGain(PIDvals[0]);
-//					currentRCServo->setVelocityKdGain(PIDvals[1]);
-//					currentRCServo->setVelocityKiGain(PIDvals[2]);
-//
-//				}
-//			}
+
 //			else { // Else it's a motor movement command
 //				sprintf(debugSerialOutBuffer, "Command : %.2f\r\n",bufferData);
 //				//currentRCServo->sendCommand(bufferData);
@@ -426,17 +770,38 @@ void serialReading() {
 //		//HAL_UART_Transmit(&hlpuart1, (uint8_t*)serialOutBuffer, strlen(serialOutBuffer), 1000);
 //		usbSerialOut(debugSerialOutBuffer);
 //	}
-}
+//}
 
-void switchServo() {
-//    if (currentServo == &servo1) {currentServo = &servo2;}
-//    else {currentServo = &servo1;}
-	//if (currentServo == omniSequencer.getServo(0)) {currentServo = omniSequencer.getServo(1);}
-	//else {currentServo = omniSequencer.getServo(0);}
+//void switchServo(int servoId) {
+////    if (currentServo == &servo1) {currentServo = &servo2;}
+////    else {currentServo = &servo1;}
+//	//if (currentServo == omniSequencerRC.getServo(0)) {currentServo = omniSequencerRc.getServo(1);}
+//	//else {currentServo = omniSequencerRc.getServo(0);}
+//
+//	if(servoId >= 0)
+//	{
+////		currentRCServo = omniRCSeq.getServoByID(servoId);
+////		if(currentRCServo == NULL)
+////		{
+////			sprintf(main_debugSerialOutBuffer, "No servo with ID %d\r\n", servoId);
+////			myCLI.forcePrint(main_debugSerialOutBuffer);
+////			return;
+////		}
+//	}
+//	else
+//	{
+////		static int currentIndex = ;
+////		currentIndex++;
+////		if(currentIndex >= omniRCSeq.getNumServos())
+////		{
+////			currentIndex = 0;
+////		}
+////		currentRCServo = omniRCSeq.getServoByIndex(currentIndex);
+//	}
 
-    sprintf(main_debugSerialOutBuffer, "On Servo #%d\r\n", currentRCServo->getMotorID());
-    myCLI.forcePrint(main_debugSerialOutBuffer);
-}
+//    sprintf(main_debugSerialOutBuffer, "On Servo #%d\r\n", omniSequencer.activeServo()->getMotorID());
+//    myCLI.forcePrint(main_debugSerialOutBuffer);
+//}
 
 /**
  * Cette fonction est un callback qui sera appelé par le gestionnaire de omniServo lorsque
@@ -489,7 +854,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 
 	if(huart->Instance == huart2.Instance) {
 		//omniSequencer.rxUartInterruptHandler((uint8_t*)&uart2_receivedChar, 1);
-		omniRCSeq.rxUartInterruptHandler((uint8_t*)&uart2_receivedChar, 1);
+		omniSequencer.rxUartInterruptHandler((uint8_t*)&uart2_receivedChar, 1);
 		uart2Rxstatus = HAL_UART_Receive_IT(&huart2, (uint8_t*) &uart2_receivedChar, 1);
 	}
 
@@ -520,16 +885,19 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 	}
 }
 
-
+//TODO
 int cmd_getMotorInfo(const char* argString)
 {
-	myCLI.forcePrint("--> GetMotorInfo Success\r\n");
+	myCLI.forcePrint("--> NOT IMPLEMENTED YET\r\n");
+	//myCLI.forcePrint("--> GetMotorInfo Success\r\n");
 	return 0;
 }
 
+//TODO
 int cmd_findServos(const char* argString)
 {
-	myCLI.forcePrint("--> findServos Success\r\n");
+	myCLI.forcePrint("--> NOT IMPLEMENTED YET\r\n");
+	//myCLI.forcePrint("--> findServos Success\r\n");
 
 	return 0;
 }
