@@ -19,6 +19,7 @@ bool sendCurrentCurrentFlag = false;
 bool sendCurrentTempFlag = false;
 bool sendTorqueConstantFlag = false;
 bool sendCurrentIdFlag = false;
+bool pingFlag = false;
 
 uint8_t speedFreqCount = 0;
 bool commandUpdateFlag = false;
@@ -194,6 +195,10 @@ void manageReceivedData() {
 						case dataType_Reset:
 							servo.reset();
 							break;
+
+						case dataType_Ping:
+							pingFlag = true;
+							break;
 						case dataType_TorqueConstantReq:
 							sendTorqueConstantFlag = true;
 							break;
@@ -212,7 +217,7 @@ void manageReceivedData() {
 }
 
 bool dataToSend() {
-	return (sendCurrentAngleFlag || sendCurrentSpeedFlag || sendCurrentModeFlag || sendCurrentUnitsFlag || sendCurrentCurrentFlag || sendCurrentTempFlag || sendTorqueConstantFlag || sendCurrentIdFlag);
+	return (sendCurrentAngleFlag || sendCurrentSpeedFlag || sendCurrentModeFlag || sendCurrentUnitsFlag || sendCurrentCurrentFlag || sendCurrentTempFlag || sendTorqueConstantFlag || sendCurrentIdFlag || pingFlag);
 }
 // Gestionnaire de l'envoi de message
 void checkToSend() {
@@ -220,6 +225,9 @@ void checkToSend() {
 	if (dataToSend()) {
 		// Envoi d'un nouveau message
 		txComm.startNewMessage(servo.reqMotorID(), MASTER_ID);
+		if (pingFlag) {
+			pingFlag = false;
+		}
 		if (sendCurrentAngleFlag) {
 			sendCurrentAngleFlag = false;
 			float angleBuffer = servo.reqCurrentAngle();
