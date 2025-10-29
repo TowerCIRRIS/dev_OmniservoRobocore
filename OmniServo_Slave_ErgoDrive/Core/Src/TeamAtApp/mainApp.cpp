@@ -20,6 +20,8 @@ bool sendCurrentTempFlag = false;
 bool sendTorqueConstantFlag = false;
 bool sendCurrentIdFlag = false;
 bool pingFlag = false;
+bool sendMotorConfigInfoFlag = false;
+
 
 uint8_t speedFreqCount = 0;
 bool commandUpdateFlag = false;
@@ -83,6 +85,7 @@ void loop()
 
 // Gestionnaire de la réception de message
 void manageReceivedData() {
+	bool boolDataRx = false;
 	int dataStatus = rxComm.validateData();
 	if (dataStatus == ATCOMM_SUCCESS) {
 		successfulCommFlag = true; // If any Servo message is successfully received, we acknowledge the master's activity
@@ -115,6 +118,9 @@ void manageReceivedData() {
 							break;
 						case dataType_RequestID:
 							sendCurrentIdFlag = true;
+							break;
+						case dataType_RequestMotorConfigInfo:
+							sendMotorConfigInfoFlag = true;
 							break;
 						case dataType_RestoreFactorySettings:
 							servo.restoreFactorySettings(KEEP_ID);
@@ -182,6 +188,12 @@ void manageReceivedData() {
 								}
 							}
 							break;
+
+						case dataType_ControlEnableRequest:
+							rxComm.getData(dInfo, (bool*)&boolDataRx, dInfo.dataLen);
+							servo.changeControlEnable(boolDataRx);
+							break;
+
 						case dataType_ChangeID:
 							rxComm.getData(dInfo, &motorIdChangeBuffer, dInfo.dataLen);
 							if(motorIdChangeBuffer.MotorID == servo.reqMotorID())
@@ -196,9 +208,9 @@ void manageReceivedData() {
 							servo.reset();
 							break;
 
-						case dataType_Ping:
+						/*case dataType_Ping:
 							pingFlag = true;
-							break;
+							break;*/
 						case dataType_TorqueConstantReq:
 							sendTorqueConstantFlag = true;
 							break;
@@ -217,7 +229,9 @@ void manageReceivedData() {
 }
 
 bool dataToSend() {
-	return (sendCurrentAngleFlag || sendCurrentSpeedFlag || sendCurrentModeFlag || sendCurrentUnitsFlag || sendCurrentCurrentFlag || sendCurrentTempFlag || sendTorqueConstantFlag || sendCurrentIdFlag || pingFlag);
+	return (sendCurrentAngleFlag || sendCurrentSpeedFlag || sendCurrentModeFlag || sendCurrentUnitsFlag
+			|| sendCurrentCurrentFlag || sendCurrentTempFlag || sendTorqueConstantFlag || sendCurrentIdFlag
+			/*|| pingFlag*/ || sendMotorConfigInfoFlag);
 }
 // Gestionnaire de l'envoi de message
 void checkToSend() {
@@ -268,6 +282,12 @@ void checkToSend() {
 			sendCurrentIdFlag = false;
 			uint8_t tempMotorID = servo.reqMotorID();
 			txComm.addData(dataType_RequestID, sizeof(tempMotorID), &tempMotorID);
+		}
+		if(sendMotorConfigInfoFlag) {
+			sendMotorConfigInfoFlag = false;
+			ServoConfigInfo configData = servo.getConfigInfo();
+			txComm.addData(dataType_motorConfigInfo, sizeof(configData), &configData);
+
 		}
 
 //		if(send){
