@@ -41,10 +41,5 @@
 			<type>2</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TeamATLibs/TeamAT_L_AtComm</locationURI>
 		</link>
-		<link>
-			<name>TeamAT_OmniServo_STM_Slave</name>
-			<type>2</type>
-			<locationURI>PARENT-1-PROJECT_LOC/TeamATLibs/TeamAT_OmniServo_STM_Slave</locationURI>
-		</link>
 	</linkedResources>
 </projectDescription>

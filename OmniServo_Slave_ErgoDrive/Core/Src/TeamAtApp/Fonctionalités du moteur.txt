@@ -1,0 +1,20 @@
+Fonctionalités du moteur avec librairie "OmniServo" :
+- Contrôle asservi en position
+	- Permet des rotations infinies 
+	- Mode de contrôle en position ABSOLUE pour toute valeur d'angle
+	- Mode de contrôle INCRÉMENTAL conservant le compte de position absolue
+	- Fonction de RESET des angles dans la plage [0,360[ deg.
+	- Fonction de changement du repère 0 deg à la position courante ou une position prescrite
+	- Fonction de changement des valeurs PID en mode position (incluant fréquence)
+- Contrôle asservi en vitesse :
+	- Ne tient PAS COMPTE de la position absolue
+	- Fonction de changement des valeurs PID en mode vitesse (incluant fréquence)
+- Posibilité de changement de mode de contrôle "on the fly" :
+	- Un changement entre les modes de contrôle en position maintient le compte de position absolue
+	- Un changement du mode de vitesse vers l'un des modes de positionnement initialise le nouvel angle absolu dans la plage [0,360[ deg
+- Possibilité d'activer et de désactiver le moteur :
+	- Désactiver le moteur coupe le circuit du moteur
+	- Désactiver le moteur permet de "backdrive" le moteur
+	- Même lorsque désactivé, le moteur garde le compte de sa position absolue (si un mode de position était préalablement utilisé avant la désactivation)
+	- Lors de l'initialisation d'un object OmniServo, le moteur débute en mode désactivé
+- Puisque l'encodeur est absolu, le moteur conserve la même référence 0 entre chaque "power cycle"
