@@ -10,7 +10,7 @@
 
 
 #include "at_platformAbstraction_V1_1.h"
-//#include "OmniServoSequencer.h"
+#include "teamATbasic_V1_1.h"
 #include "OmniServoRCSequencer.h"
 #include "uartApp.h"
 #include "cliApp.h"
@@ -66,7 +66,7 @@
 
 /* ------------------ Functions & Variables for the Example ------------------ */
 void serialReading();
-bool parseFloat(const char *s, float &out);
+
 //void switchServo(int servoId = -1);
 
 
@@ -151,6 +151,7 @@ int cmd_listServos(const char* argString);
 int cmd_command(const char* argString);
 
 
+
     const int numCliCommands = 21;
 	CLI_FUNC_PTR commands_func[numCliCommands]{
     		 &cmd_getMotorInfo,
@@ -198,7 +199,7 @@ int cmd_command(const char* argString);
 			 "switchservo",
 			 "changeservoid",
 			 "listservos",
-			 "c"
+			 "c",
          };
 
 
@@ -227,7 +228,7 @@ void setup() {
 	HAL_UART_Receive_IT(&huart2, (uint8_t*) &uart2_receivedChar, 1);
 
 	myCLI.print("\r\nSearching for servos...\r\n");
-	int nbServosFound = omniSequencer.pingAndAddAllServos(10,20);
+	int nbServosFound = omniSequencer.pingAndAddAllServos(1,20);
 	sprintf(main_debugSerialOutBuffer, "\r\n-->Number of servos found: %d\r\n", nbServosFound);
 	myCLI.print(main_debugSerialOutBuffer);
 
@@ -237,7 +238,7 @@ void setup() {
 				while(1);
 	}
 
-	//omniSequencer.addServo(SLAVE_1_ID);
+
 	actuator_Omniservo* currentServo = omniSequencer.setActiveServoByIdndex(0);
 
 	if(currentServo == NULL)
@@ -247,8 +248,11 @@ void setup() {
 	}
 	else
 	{
-		sprintf(main_debugSerialOutBuffer, "\r\n-->Current Active Servo ID: %d\r\n", currentServo->getMotorID());
-		myCLI.print(main_debugSerialOutBuffer);
+		//sprintf(main_debugSerialOutBuffer, "\r\n-->Current Active Servo ID: %d\r\n", currentServo->getMotorID());
+		//myCLI.print(main_debugSerialOutBuffer);
+
+		// Print list of all detected servos and show their current parameters
+		cmd_listServos(NULL);
 	}
 
 	omniSequencer.resetSlaves();
@@ -337,7 +341,13 @@ int cmd_changeMode(const char* argString)
 
 int cmd_disableControl(const char* argString)
 {
-	omniSequencer.activeServo()->disableControl();
+	actuator_Omniservo* activeServo = omniSequencer.activeServo();
+	if(activeServo == nullptr)
+	{
+		myCLI.print("\n\r[ERROR]: Active Servo error\r\n");
+		return 1;
+	}
+	activeServo->disableControl();
 
 	myCLI.print("\n\r-->Control disabled\r\n");
 
@@ -346,7 +356,13 @@ int cmd_disableControl(const char* argString)
 
 int cmd_startControl(const char* argString)
 {
-	omniSequencer.activeServo()->enableControl();
+	actuator_Omniservo* activeServo = omniSequencer.activeServo();
+	if(activeServo == nullptr)
+	{
+		myCLI.print("\n\r[ERROR]: Active Servo error\r\n");
+		return 1;
+	}
+	activeServo->enableControl();
 
 	myCLI.print("\n\r-->Control started\r\n");
 
@@ -549,12 +565,12 @@ int cmd_switchUnits(const char* argString)
 {
 	if(strcmp(argString, "degrees") == 0 || strcmp(argString, "deg") == 0 || strcmp(argString, "d") == 0)
 	{
-		omniSequencer.activeServo()->setWorkingUnits(DEGREES);
+		omniSequencer.activeServo()->sendWorkingUnits(DEGREES);
 		myCLI.print("\n\r-->Switching to degrees.\r\n");
 	}
 	else if(strcmp(argString, "radians") == 0 || strcmp(argString, "rad") == 0 || strcmp(argString, "r") == 0)
 	{
-		omniSequencer.activeServo()->setWorkingUnits(RADIANS);
+		omniSequencer.activeServo()->sendWorkingUnits(RADIANS);
 		myCLI.print("\n\r-->Switching to radians.\r\n");
 	}
 	else
@@ -658,15 +674,52 @@ int cmd_listServos(const char* argString)
 
 	for(int i=0; i <omniSequencer.getNbServos(); i++)
 	{
-		sprintf(output, "\n\r\t Servo [%d]: ID[%d]", i, omniSequencer.getServoByIndex(i)->getMotorID());
+		actuator_Omniservo* servo = omniSequencer.getServoByIndex(i);
+		sprintf(output, "\n\r\t Servo [%d]: ID[%d]", i,servo->getMotorID() );
 		myCLI.print(output);
-		delay(50);
-		if(omniSequencer.getServoByIndex(i) == omniSequencer.activeServo())
+		delay(10);
+		if(servo == omniSequencer.activeServo())
 		{
 			sprintf(output," (Active)");
 			myCLI.print(output);
 			delay(50);
 		}
+
+		ServoConfigInfo configInfo = servo->getConfig();
+		if(configInfo.workingUnits == DEGREES)
+		{
+			sprintf(output, "\n\r\t\tWorking Units: Degrees");
+		}
+		else
+		{
+			sprintf(output, "\n\r\t\tWorking Units: Radians");
+		}
+		myCLI.print(output);
+		delay(1);
+
+		sprintf(output, "\n\r\t\tOrigin reference: %ld",configInfo.originRef);
+		myCLI.print(output);
+		delay(1);
+
+		sprintf(output, "\n\r\t\tDirection: %ld",configInfo.refDirection);
+		myCLI.print(output);
+		delay(1);
+
+		sprintf(output, "\n\r\t\tCenter Angle: %ld",configInfo.centerReadAngle);
+		myCLI.print(output);
+		delay(1);
+
+		sprintf(output, "\n\r\t\tTorque Constant: %.2f mNm/A",configInfo.torqueConstant);
+		myCLI.print(output);
+		delay(1);
+
+		sprintf(output, "\n\r\t\tPosition PID: Kp: %.2f \tKi: %.2f \tKd: %.2f",configInfo.kpp, configInfo.kip, configInfo.kdp);
+		myCLI.print(output);
+		delay(1);
+
+		sprintf(output, "\n\r\t\tVelocity PID: Kp: %.2f \tKi: %.2f \tKd: %.2f",configInfo.kpv, configInfo.kiv, configInfo.kdv);
+		myCLI.print(output);
+		delay(1);
 
 	}
 	myCLI.print("\n\n\r ---- End of List ----\r\n");
@@ -677,30 +730,10 @@ int cmd_listServos(const char* argString)
 }
 
 
-bool parseFloat(const char *s, float &out) {
-
-    if (s == nullptr) return false;
-
-    char *end = nullptr;
-
-    // use strtof to parse float and get end pointer
-    float val = strtof(s, &end);
-
-    // no conversion performed (e.g. "-abc" -> end == s)
-    if (end == s) return false;
-
-    // skip trailing whitespace
-    while (*end != '\0' && isspace((unsigned char)*end)) ++end;
-    // if there are remaining non-space chars, reject (e.g. "12.3abc")
-    if (*end != '\0') return false;
-
-    out = val;
-    return true;
-}
-
 int cmd_command(const char* argString)
 {
 	float commandValue = 0;
+	angleRad_rct command;
 	char output[130];
 
 	if(parseFloat(argString, commandValue)){
@@ -708,7 +741,14 @@ int cmd_command(const char* argString)
 		sprintf(output, "\n\rSending %f to ID[%d]", commandValue, omniSequencer.activeServo()->getMotorID());
 		myCLI.print(output);
 
-		omniSequencer.activeServo()->sendCommand(commandValue);
+		actuatorError_rct errorCode = omniSequencer.activeServo()->sendCommand(commandValue);
+		if(errorCode != ERROR_ROBOCORE_ACTUATOR_NONE)
+		{
+			sprintf(output, "\n\r--> [ERROR]: Sending command failed with error code %d", (int)errorCode);
+
+			myCLI.print(output);
+			return errorCode;
+		}
 	}
 	else
 	{
@@ -719,6 +759,7 @@ int cmd_command(const char* argString)
 
 	return 0;
 }
+
 
 
 
