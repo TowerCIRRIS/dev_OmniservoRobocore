@@ -76,10 +76,10 @@ void Error_Handler(void);
 #define MTR_nSLEEP_GPIO_Port GPIOA
 #define LED1_Pin GPIO_PIN_9
 #define LED1_GPIO_Port GPIOA
-#define MTR_EN_Pin GPIO_PIN_10
-#define MTR_EN_GPIO_Port GPIOA
-#define MTR_PH_Pin GPIO_PIN_9
-#define MTR_PH_GPIO_Port GPIOB
+#define MTR_EN_IN1_Pin GPIO_PIN_10
+#define MTR_EN_IN1_GPIO_Port GPIOA
+#define MTR_PH_IN2_Pin GPIO_PIN_9
+#define MTR_PH_IN2_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

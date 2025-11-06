@@ -15,9 +15,24 @@
 #include <adc.h>
 #include "TeamAT_AS5600_STM.h"
 #include "backupData_OmniServo.h"
+#include "AtPositionController.h"
+
+
+#define DRIVE_MODE_PHASE_ENABLE 0
+#define DRIVE_MODE_PWM			1
+#define DEFAULT_DRIVE_MODE		DRIVE_MODE_PHASE_ENABLE
+
+
+#define IDLE_MODE_BRAKE 		0
+#define IDLE_MODE_COAST			1
+#define DEFAULT_IDLE_MODE		IDLE_MODE_COAST
 
 #define DEFAULT_CONTROL_MODE ABS_POSITION
 #define DEFAULT_TORQUE_CONSTANT 11.44 // mNm/A (Langyi 2232R-04A)
+
+#define EN_IN1_PWM  TIM2->CCR4
+#define PH_IN2_PWM  TIM4->CCR4
+
 
 //    m_kpp = 100; // 2.5; // 40 400
 //    m_kdp = 1.6; // 2.5; // 1.8 15
@@ -93,6 +108,7 @@ public:
 	void changeMotorID(const uint8_t& p_motorID);
     void changeMode(ServoModes p_mode);
     void changeControlEnable(bool controlEnable);
+    bool getControlEnable();
     void changeWorkingUnits(WorkingUnits p_units);
 
     void sendComand(const float& p_command);
@@ -112,6 +128,8 @@ public:
     void computeSpeed();
     void updateCurrentAndTemp();
 
+
+    PositionController pController = PositionController(0.1); // 10Hz
 	uint8_t reqMotorID();
     float reqCurrentAngle();
     float reqTargetAngle();
@@ -158,11 +176,13 @@ private:
     float m_kdp;
     float m_kip;
     float m_taup;
+    float m_PWMCountKip;
 
     float m_kpv;
     float m_kdv;
     float m_kiv;
     float m_tauv;
+    float m_PWMCountKiv;
 
     int32_t m_originRef;
     int8_t m_refDirection;
@@ -177,7 +197,7 @@ private:
 
     float m_driveCommand;
 
-    float m_previousAngle;
+    float m_previousReadAngle;
     float m_previousSpeed;
     float m_previousAngle10Hz;
 
@@ -190,6 +210,9 @@ private:
     float m_currentTemp;
 
     backupStruct_t m_config;
+
+    uint8_t m_idleMode = DEFAULT_IDLE_MODE;
+    uint8_t m_driveMode = DEFAULT_DRIVE_MODE;
 
 
 

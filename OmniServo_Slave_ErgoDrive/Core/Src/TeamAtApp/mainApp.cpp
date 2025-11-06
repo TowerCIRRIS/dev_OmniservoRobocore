@@ -6,6 +6,9 @@
 #include "mainApp.h"
 #include "stdio.h"
 
+//TODO Gestion et partage des erreurs
+//TODO Optimisation de la comm au besoin
+
 char serialOutBuffer[300];	// Port série débug
 
 uint8_t timeoutCounter = 0; // reset after 0.5s (50 counts @ 100Hz)
@@ -19,7 +22,6 @@ bool sendCurrentCurrentFlag = false;
 bool sendCurrentTempFlag = false;
 bool sendTorqueConstantFlag = false;
 bool sendCurrentIdFlag = false;
-bool pingFlag = false;
 bool sendMotorConfigInfoFlag = false;
 
 
@@ -28,12 +30,6 @@ bool commandUpdateFlag = false;
 
 OmniServo servo;
 
-
-
-
-
-
-
 atComm txComm(ATCOMM_BUFFER_SIZE);
 atComm rxComm(ATCOMM_BUFFER_SIZE);
 
@@ -41,7 +37,7 @@ PIDvalues rxPIDvalues;
 UnitsCommand rxUnitsCommand;
 ReferenceCommand rxReferenceCommand;
 MotorCommand rxMotorCommand;
-//uint8_t motorIDBuffer;
+
 
 newIdCommand motorIdChangeBuffer;
 
@@ -61,7 +57,14 @@ void updateServoCommand();
 void setup()
 {
 	HAL_Delay(50);
+
+	//Idle au départ, config pour choisir idle ou brake
+	TIM2->CCR4 = 0;
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
+
+	TIM4->CCR4 = 0;
+	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+
 	HAL_TIM_Base_Start_IT(&htim3);
 
 	servo.init();
@@ -95,6 +98,7 @@ void manageReceivedData() {
 			if(dataCount > 0) {
 				for (int i = 0; i < dataCount; i++) {
 					dataInfo_t dInfo;
+					uint8_t uint8DataRx;
 					if(ATCOMM_SUCCESS == rxComm.getDataInfo(i,&dInfo)) {
 						switch (dInfo.dataType)
 						{
@@ -178,6 +182,9 @@ void manageReceivedData() {
 							break;
 
 						case dataType_MotorCommand:
+
+							//TODO lundi: LE moteur part et arrête pu mais on dirait qu'il ne reçoit plsu de commande.
+							//trouver pourquoi il part en couille
 							rxComm.getData(dInfo, (MotorCommand*)&rxMotorCommand, dInfo.dataLen);
 							if (rxMotorCommand.MotorID == servo.reqMotorID()) {
 								if ((ServoModes)rxMotorCommand.controlMode != servo.reqCurrentMode()) {
@@ -203,14 +210,16 @@ void manageReceivedData() {
 
 							break;
 
+						case dataType_ChangeModeRequest:
+							rxComm.getData(dInfo, &uint8DataRx, dInfo.dataLen);
+							servo.changeMode((ServoModes)uint8DataRx);
+							break;
+
 
 						case dataType_Reset:
 							servo.reset();
 							break;
 
-						/*case dataType_Ping:
-							pingFlag = true;
-							break;*/
 						case dataType_TorqueConstantReq:
 							sendTorqueConstantFlag = true;
 							break;
@@ -231,7 +240,7 @@ void manageReceivedData() {
 bool dataToSend() {
 	return (sendCurrentAngleFlag || sendCurrentSpeedFlag || sendCurrentModeFlag || sendCurrentUnitsFlag
 			|| sendCurrentCurrentFlag || sendCurrentTempFlag || sendTorqueConstantFlag || sendCurrentIdFlag
-			/*|| pingFlag*/ || sendMotorConfigInfoFlag);
+			|| sendMotorConfigInfoFlag);
 }
 // Gestionnaire de l'envoi de message
 void checkToSend() {
@@ -239,9 +248,6 @@ void checkToSend() {
 	if (dataToSend()) {
 		// Envoi d'un nouveau message
 		txComm.startNewMessage(servo.reqMotorID(), MASTER_ID);
-		if (pingFlag) {
-			pingFlag = false;
-		}
 		if (sendCurrentAngleFlag) {
 			sendCurrentAngleFlag = false;
 			float angleBuffer = servo.reqCurrentAngle();
@@ -290,9 +296,6 @@ void checkToSend() {
 
 		}
 
-//		if(send){
-//
-//		}
 		txComm.setLastPacketStatus();
 		txComm.completeMessage();
 		int bytesRead = txComm.getSendPacket(serialDataBuffer, SERIAL_DATA_BUFFER_SIZE);
@@ -302,14 +305,18 @@ void checkToSend() {
 }
 
 void updateServoCommand() {
-	if (servo.reqCurrentMode() != SPEED) {
+
+	if (servo.reqCurrentMode() != SPEED)
+	{
 		servo.updateCommand();
 	}
 	speedFreqCount += 1;
-	if (speedFreqCount >= 10) {
+	if (speedFreqCount >= 10)
+	{
 		speedFreqCount = 0;
 		servo.computeSpeed();
-		if (servo.reqCurrentMode() == SPEED){
+		if (servo.reqCurrentMode() == SPEED)
+		{
 			servo.updateCommand();
 		}
 		servo.updateCurrentAndTemp();
@@ -338,17 +345,18 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
 		commandUpdateFlag = true;
-		if (successfulCommFlag) {
+		if (successfulCommFlag || !servo.getControlEnable()) {
 			timeoutCounter = 0;
 			successfulCommFlag = false;
 		}
 		else {
-			timeoutCounter += 1;
-			if (timeoutCounter >= 50) { // 0.5s for a timeout
-				timeoutCounter = 0;
-				rxComm.resetBuffer();
-				servo.reset();
-			}
+//TODO remettre, TEMPORAIRE
+//			timeoutCounter += 1;
+//			if (timeoutCounter >= 50) { // 0.5s for a timeout
+//				timeoutCounter = 0;
+//				rxComm.resetBuffer();
+//				servo.reset();
+//			}
 		}
 	}
 }

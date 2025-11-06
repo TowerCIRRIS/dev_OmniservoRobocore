@@ -12,6 +12,7 @@
 #define FORCE_MAGNET_DETECTION true
 
 #define PWM_COUNT 2000
+#define PWM_LIMIT	(PWM_COUNT-1)
 #define PI 3.1416
 //#define VrefCurrentSense 2.7107 // Volts
 #define RrefCurrentSense 1000 // Ohms
@@ -52,10 +53,12 @@ void OmniServo::loadDefaultConfig()
 	m_kpp = 			OMNISERVO_DEFAULT_KPP;
 	m_kdp = 			OMNISERVO_DEFAULT_KDP;
 	m_kip = 			OMNISERVO_DEFAULT_KIP;
+	m_PWMCountKip = 	((float)PWM_COUNT)/m_kip;
     m_taup = 			OMNISERVO_DEFAULT_TAUP;
     m_kpv = 			OMNISERVO_DEFAULT_KPV;
     m_kdv = 			OMNISERVO_DEFAULT_KDV;
     m_kiv = 			OMNISERVO_DEFAULT_KIV;
+    m_PWMCountKiv = 	((float)PWM_COUNT)/m_kiv;
     m_tauv = 			OMNISERVO_DEFAULT_TAUV;
     m_originRef = 		OMNISERVO_DEFAULT_ORIGINREF;
     m_refDirection = 	OMNISERVO_DEFAULT_REFDIR;
@@ -68,6 +71,16 @@ void OmniServo::loadDefaultConfig()
  * @brief Basic servo initialize method
  */
 void OmniServo::init() {
+
+	if(m_driveMode == DRIVE_MODE_PHASE_ENABLE)
+	{
+		HAL_GPIO_WritePin(MTR_PMODE_GPIO_Port, MTR_PMODE_Pin, GPIO_PIN_RESET); // PH/en Control Mode
+	}
+	else
+	{
+		HAL_GPIO_WritePin(MTR_PMODE_GPIO_Port, MTR_PMODE_Pin, GPIO_PIN_SET); // PWM Mode
+	}
+
 
 	changeControlEnable(false);
 	changeMode(DEFAULT_CONTROL_MODE);
@@ -155,6 +168,7 @@ void OmniServo::asgPIDpositionValues(const float& p_kp, const float& p_kd,
     m_kpp = p_kp;
     m_kdp = p_kd;
     m_kip = p_ki;
+    m_PWMCountKip = ((float)PWM_COUNT)/m_kip;
     setConfigData();
     writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
 }
@@ -171,6 +185,7 @@ void OmniServo::asgPIDspeedValues(const float& p_kp, const float& p_kd,
     m_kpv = p_kp;
     m_kdv = p_kd;
     m_kiv = p_ki;
+    m_PWMCountKiv = ((float)PWM_COUNT)/m_kiv;
     setConfigData();
     writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
 }
@@ -191,6 +206,8 @@ void OmniServo::changeMotorID(const uint8_t& p_motorID) {
  * @note Reference ServoModes for the list of possible modes
  */
 void OmniServo::changeMode(ServoModes p_mode) {
+
+
     switch (p_mode)
     {
 //    case ServoModes::DISABLED:
@@ -203,9 +220,11 @@ void OmniServo::changeMode(ServoModes p_mode) {
             if (m_currentMode != INC_POSITION) {
                 m_targetAngle = m_currentAngle;
             }
+            changeControlEnable(false);
             m_errorSum = 0;
             m_currentMode = ABS_POSITION;
-            HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
+            //Géré par changeControlEnable()  HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
+
             updateCommand();
 		}
         break;
@@ -214,18 +233,20 @@ void OmniServo::changeMode(ServoModes p_mode) {
             if (m_currentMode != ABS_POSITION) {
                 m_targetAngle = m_currentAngle;
             }
+            changeControlEnable(false);
             m_errorSum = 0;
             m_currentMode = INC_POSITION;
-            HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
+            //Géré par changeControlEnable()  HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
             updateCommand();
         }
         break;
     case ServoModes::SPEED:
         if (m_currentMode != SPEED) {
             m_currentMode = SPEED;
+            changeControlEnable(false);
             m_targetSpeed = 0;
             m_errorSum = 0;
-            HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
+           //Géré par changeControlEnable()  HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
             updateCommand();
         }
         break;
@@ -253,15 +274,55 @@ void OmniServo::changeControlEnable(bool controlEnable) {
 		m_targetAngle = m_currentAngle;
 		m_targetSpeed = 0;
 		m_controlEnabled = true;
+
 		HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
+
+
 	}
 	else if(!controlEnable && m_controlEnabled)
 	{
-		TIM2->CCR4 = 0;
+		if(m_driveMode == DRIVE_MODE_PHASE_ENABLE)
+		{
+			EN_IN1_PWM = 0;	// EN = 0
+			PH_IN2_PWM = 0; // don'T care
+			if(m_idleMode == IDLE_MODE_BRAKE)
+			{
+				HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
+			}
+			else //IDLE_MODE_COAST
+			{
+				HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_RESET);
+			}
+		}
+		else // DRIVE_MODE_PWM
+		{
+			if(m_idleMode == IDLE_MODE_BRAKE)
+			{
+				EN_IN1_PWM = PWM_COUNT;
+				PH_IN2_PWM = PWM_COUNT;
+			}
+			else	//IDLE_MODE_COAST
+			{
+				EN_IN1_PWM = 0;
+				PH_IN2_PWM = 0;
+				//TODO tester avec / sans sleep
+				HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_RESET);
+			}
+		}
+
 		m_controlEnabled = false;
-		HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_RESET);
 	}
 }
+
+/**
+ * @brief Accessor for the control enable state
+ * @return True if the control is enabled, false otherwise
+ */
+bool OmniServo::getControlEnable()
+{
+	return m_controlEnabled;
+}
+
 /**
  * @brief Command to change the working units
  * @note Reference WorkingUnits for the list of possible units
@@ -285,7 +346,7 @@ void OmniServo::changeWorkingUnits(WorkingUnits p_units) {
  */
 void OmniServo::sendComand(const float& p_command) {
     float command = p_command * m_refDirection;
-    if (m_currentUnits == RADIANS) {command = rad2deg(command);}
+    if (m_currentUnits == DEGREES) {command = rad2deg(command);}
     switch (m_currentMode)
     {
     case NOT_SET:
@@ -311,20 +372,45 @@ void OmniServo::sendComand(const float& p_command) {
  * @warning This method must be called at 100Hz for position modes and 10Hz for speed mode
  */
 void OmniServo::updateCommand() {
+
     float readAngle = getAdjustedAngle();
-    if (m_previousAngle >= 270 && readAngle <= 90) {m_nbCurrentTurns += 1;}
-    else if (m_previousAngle <= 90 && readAngle >= 270) {m_nbCurrentTurns += -1;}
+    if (m_previousReadAngle >= 270 && readAngle <= 90) {
+    	m_nbCurrentTurns += 1;
+    }
+    else if (m_previousReadAngle <= 90 && readAngle >= 270) {
+    	m_nbCurrentTurns += -1;
+    }
     m_currentAngle = readAngle + 360.0*m_nbCurrentTurns;
-    m_previousAngle = readAngle;
+    m_previousReadAngle = readAngle;
 
     if (m_currentMode != ServoModes::NOT_SET && m_controlEnabled) {
         if (m_currentMode == ABS_POSITION || m_currentMode == INC_POSITION) {
         	float currentError = m_targetAngle - m_currentAngle;
         	float errorDiff = currentError - m_previousError;
-        	if (abs(currentError) <= ERROR_SUM_DELTA) {m_errorSum += currentError*m_taup;}
 
-            if (m_errorSum > (float)PWM_COUNT/m_kip) {m_errorSum = (float)PWM_COUNT/m_kip;}
-			else if (m_errorSum < -(float)PWM_COUNT/m_kip) {m_errorSum = -(float)PWM_COUNT/m_kip;}
+        	if (abs(currentError) <= ERROR_SUM_DELTA)
+        	{
+        		m_errorSum += (currentError*m_taup);
+        	}
+
+        	//TODO optimiser: divisions inutiles à chaque appel
+//            if (m_errorSum > (float)PWM_COUNT/m_kip)
+//            {
+//            	m_errorSum = (float)PWM_COUNT/m_kip;
+//            }
+//			else if (m_errorSum < -(float)PWM_COUNT/m_kip)
+//			{
+//				m_errorSum = -(float)PWM_COUNT/m_kip;
+//			}
+
+            if (m_errorSum > m_PWMCountKip)
+			{
+				m_errorSum = m_PWMCountKip;
+			}
+			else if (m_errorSum < -m_PWMCountKip)
+			{
+				m_errorSum = -m_PWMCountKip;
+			}
 
             float integralError = 0;
             integralError = m_kip*m_errorSum;
@@ -334,31 +420,72 @@ void OmniServo::updateCommand() {
             m_previousError = currentError;
         }
 
-        else if (m_currentMode == SPEED) {
+        else if (m_currentMode == SPEED)
+        {
         	float currentError = m_targetSpeed - m_currentSpeed;
         	float errorDiff = currentError - m_previousError;
             m_errorSum += currentError*m_tauv;
 
-            if (m_errorSum > (float)PWM_COUNT/m_kiv) {m_errorSum = (float)PWM_COUNT/m_kiv;}
-            else if (m_errorSum < -(float)PWM_COUNT/m_kiv) {m_errorSum = -(float)PWM_COUNT/m_kiv;}
+//            if (m_errorSum > (float)PWM_COUNT/m_kiv)
+//            {
+//            	m_errorSum = (float)PWM_COUNT/m_kiv;
+//            }
+//            else if (m_errorSum < -(float)PWM_COUNT/m_kiv)
+//            {
+//            	m_errorSum = -(float)PWM_COUNT/m_kiv;
+//            }
+           if (m_errorSum > m_PWMCountKiv)
+		   {
+        	   m_errorSum = m_PWMCountKiv;
+		   }
+		   else if (m_errorSum < -m_PWMCountKiv)
+		   {
+			   m_errorSum = -m_PWMCountKiv;
+		   }
 
             m_driveCommand = m_kpv*currentError + m_kdv*(errorDiff/m_tauv) + m_kiv*m_errorSum;
-
             m_previousError = currentError;
         }
 
         // Updates the drive command
-        if (m_driveCommand > PWM_COUNT-1) {m_driveCommand = PWM_COUNT-1;}
-        else if (m_driveCommand < -PWM_COUNT+1) {m_driveCommand = -PWM_COUNT+1;}
-
-        if (m_driveCommand >= 0) {
-            TIM2->CCR4 = (uint32_t)(m_driveCommand);
-            HAL_GPIO_WritePin(MTR_PH_GPIO_Port, MTR_PH_Pin, GPIO_PIN_RESET);
-        } 
-        else {
-            TIM2->CCR4 = (uint32_t)(-m_driveCommand);
-            HAL_GPIO_WritePin(MTR_PH_GPIO_Port, MTR_PH_Pin, GPIO_PIN_SET);
+        //Limitccr
+        if (m_driveCommand > PWM_LIMIT)
+        {
+        	m_driveCommand = PWM_LIMIT;
         }
+        else if (m_driveCommand < -PWM_LIMIT)
+        {
+        	m_driveCommand = -PWM_LIMIT;
+        }
+
+        if(m_driveMode == DRIVE_MODE_PHASE_ENABLE)
+        {
+        	if (m_driveCommand > 0.0) {
+        		EN_IN1_PWM = (uint32_t)(m_driveCommand);
+        		PH_IN2_PWM = 0; //anciennement: HAL_GPIO_WritePin(MTR_PH_GPIO_Port, MTR_PH_Pin, GPIO_PIN_SET);
+			}
+			else
+			{
+				EN_IN1_PWM = (uint32_t)(-m_driveCommand);
+				PH_IN2_PWM = PWM_LIMIT; //anciennement: HAL_GPIO_WritePin(MTR_PH_GPIO_Port, MTR_PH_Pin, GPIO_PIN_RESET);
+
+
+			}
+        }
+        else //DRIVE_MODE_PWM
+        {
+        	if (m_driveCommand > 0) {
+				EN_IN1_PWM =  0; //;
+				PH_IN2_PWM = (uint32_t)(m_driveCommand);
+			}
+			else {
+
+				EN_IN1_PWM = (uint32_t)(-m_driveCommand);
+				PH_IN2_PWM = 0;
+			}
+        }
+
+
     }
 }
 
@@ -375,7 +502,7 @@ void OmniServo::resetTo360() {
         	m_nbCurrentTurns = 0;
         }
         m_targetAngle = m_currentAngle;
-        m_previousAngle = 180;
+        m_previousReadAngle = 180;
         m_errorSum = 0;
         updateCommand();
     }
@@ -452,7 +579,7 @@ void OmniServo::setTurns(const int16_t& p_turns) {
 		m_nbCurrentTurns = p_turns * m_refDirection;
 		if (m_refDirection < 0) {m_nbCurrentTurns += -1;}
 		m_currentAngle = getAdjustedAngle() + 360.0*m_nbCurrentTurns;
-		m_previousAngle = 180;
+		m_previousReadAngle = 180;
 		m_previousAngle10Hz = m_currentAngle;
 		m_currentSpeed = 0;
 		m_previousSpeed = 0;
@@ -531,7 +658,7 @@ float OmniServo::getAdjustedAngle() {
 void OmniServo::computeSpeed() {
     m_currentSpeed = (m_currentAngle - m_previousAngle10Hz)*10.0; //in deg/s
 
-    float percent = 0.3;
+    float percent = 0.6;
     m_currentSpeed = m_previousSpeed*(1-percent) + m_currentSpeed*(percent);
 
     m_previousAngle10Hz = m_currentAngle;
@@ -673,9 +800,11 @@ void OmniServo::applyConfigData() {
 	m_kpp = m_config.data.kpp;
 	m_kdp = m_config.data.kdp;
 	m_kip = m_config.data.kip;
+	m_PWMCountKip = ((float)PWM_COUNT)/m_kip;
 	m_kpv = m_config.data.kpv;
 	m_kdv = m_config.data.kdv;
 	m_kiv = m_config.data.kiv;
+	m_PWMCountKiv = ((float)PWM_COUNT)/m_kiv;
 }
 
 /**
@@ -743,7 +872,7 @@ void OmniServo::readConfigData(uint32_t *Data, uint16_t numberofdoublewords) {
 		*Data = *(__IO uint32_t *)StartPageAddress;
 		StartPageAddress += 8; // AKA +64 bits or +8 bytes
 		Data++;
-		if (!(numberofdoublewords--)) break;
+		if (!(--numberofdoublewords)) break;
 	}
 }
 

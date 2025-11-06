@@ -101,6 +101,8 @@ int main(void)
   MX_ADC2_Init();
   MX_USB_Device_Init();
   MX_CRC_Init();
+  MX_TIM4_Init();
+
   /* USER CODE BEGIN 2 */
   setup();
   /* USER CODE END 2 */

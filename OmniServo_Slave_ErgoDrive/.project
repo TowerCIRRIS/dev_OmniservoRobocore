@@ -41,5 +41,10 @@
 			<type>2</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TeamATLibs/TeamAT_L_AtComm</locationURI>
 		</link>
+		<link>
+			<name>TeamAt_PositionController</name>
+			<type>2</type>
+			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAt_PositionController</location>
+		</link>
 	</linkedResources>
 </projectDescription>
