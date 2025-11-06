@@ -149,10 +149,12 @@ int cmd_switchServo(const char* argString);
 int cmd_changeServoId(const char* argString);
 int cmd_listServos(const char* argString);
 int cmd_command(const char* argString);
+int cmd_restoreFactory(const char* argString);
+int cmd_syncServoConfigs(const char* argString);
 
 
 
-    const int numCliCommands = 21;
+    const int numCliCommands = 23;
 	CLI_FUNC_PTR commands_func[numCliCommands]{
     		 &cmd_getMotorInfo,
 			 &cmd_findServos,
@@ -174,7 +176,9 @@ int cmd_command(const char* argString);
 			 &cmd_switchServo,
 			 &cmd_changeServoId,
 			 &cmd_listServos,
-			 &cmd_command
+			 &cmd_command,
+			 &cmd_restoreFactory,
+			 &cmd_syncServoConfigs
 
          };
 
@@ -200,6 +204,8 @@ int cmd_command(const char* argString);
 			 "changeservoid",
 			 "listservos",
 			 "c",
+			 "restorefactory",
+			 "syncservoconfigs"
          };
 
 
@@ -211,7 +217,7 @@ void setup() {
 	HAL_Delay(1000);
 
 
-	myCLI.print("\n\n\r\t-->OmniServo Test Program Started, press button to continue\r\n");
+
 
 	// Power up device on port 1
 	HAL_GPIO_WritePin(OUT_PORT1_POWER_GPIO_Port, OUT_PORT1_POWER_Pin, GPIO_PIN_SET);
@@ -219,7 +225,8 @@ void setup() {
 	// Initialization of the Serial Comm for the servos
 	HAL_GPIO_WritePin(RS485_DIR_GPIO_Port, RS485_DIR_Pin, RS485_RX_ENABLE);
 
-
+	//Wait for user to start system.
+	myCLI.print("\n\n\r\t-->OmniServo Test Program Started, press button to continue\r\n");
 	while(!HAL_GPIO_ReadPin(IN_BUTTON_1_GPIO_Port, IN_BUTTON_1_Pin))
 	{
 
@@ -283,9 +290,10 @@ void loop() {
 				actuator_Omniservo* currentServo = omniSequencer.activeServo();
 				if (currentServo->getCurrentUnits() == DEGREES) {
 					sprintf(main_debugSerialOutBuffer,
-							"ID: %d Angle : %.2f °  Vitesse : %.2f °/s  Courant : %.3f A  Couple : %.2f Nm  Temp : %.2f °C\r\n",
+							"ID: %d Commande : %.2f ° Angle : %.2f °  Vitesse : %.2f °/s  Courant : %.3f A  Couple : %.2f Nm  Temp : %.2f °C\r\n",
 							currentServo->getMotorID(),
-							currentServo->getCurrentAngle(),
+							currentServo->getAngleCommand().deg(),
+							currentServo->getAngle().deg(),
 							currentServo->getCurrentSpeed(),
 							currentServo->getCurrentCurrent(),
 							currentServo->getCurrentTorque(),
@@ -295,7 +303,7 @@ void loop() {
 					sprintf(main_debugSerialOutBuffer,
 							"ID: %d Angle : %.2f rad  Vitesse : %.2f rad/s  Courant : %.3f A  Couple : %.2f Nm  Temp : %.2f °C\r\n",
 							currentServo->getMotorID(),
-							currentServo->getCurrentAngle(),
+							currentServo->getAngle().deg(),
 							currentServo->getCurrentSpeed(),
 							currentServo->getCurrentCurrent(),
 							currentServo->getCurrentTorque(),
@@ -402,7 +410,9 @@ int cmd_setZeroReference(const char* argString)
 int cmd_setCurrentAngle(const char* argString)
 {
 	float bufferData = atof(argString);
-	omniSequencer.activeServo()->setCurrentAngle(bufferData);
+	//omniSequencer.activeServo()->setCurrentAngle(bufferData);
+	omniSequencer.activeServo()->setRxAngle(bufferData);
+	//TODO messager qui envoit au servo de changer l'angle courant
 	char output[100];
 
 	sprintf(output, "\n\r-->Setting current angle to: %.2f\r\n", bufferData);
@@ -485,6 +495,7 @@ int cmd_setPID(const char* argString)
 
 	float kp, ki, kd;
 	int state = 0;
+
 	if(argString[0] == 'v')
 	{
 		myCLI.print("\n\n\rChanging Velocity PID Values\n");
@@ -535,12 +546,25 @@ int cmd_setPID(const char* argString)
 					kd = floatGain;
 					state = 3;
 					char output[100];
-					sprintf(output, "\n\r--> Sending Pos. PID : P:%.2f I:%.2f D:%.2f\r\n",kp,ki,kd);
+
+					if(argString[0] == 'v')
+					{
+						sprintf(output, "\n\r--> Sending Vel. PID : P:%.2f I:%.2f D:%.2f\r\n",kp,ki,kd);
+						omniSequencer.activeServo()->setVelocityKpGain(kp);
+						omniSequencer.activeServo()->setVelocityKiGain(ki);
+						omniSequencer.activeServo()->setVelocityKdGain(kd);
+					}
+					else	 // Position
+					{
+						sprintf(output, "\n\r--> Sending Pos. PID : P:%.2f I:%.2f D:%.2f\r\n",kp,ki,kd);
+
+
+						omniSequencer.activeServo()->setKpGain(kp);
+						omniSequencer.activeServo()->setKiGain(ki);
+						omniSequencer.activeServo()->setKdGain(kd);
+					}
 					myCLI.print(output);
 
-					omniSequencer.activeServo()->setKpGain(kp);
-					omniSequencer.activeServo()->setKiGain(ki);
-					omniSequencer.activeServo()->setKdGain(kd);
 
 					return 0;
 				}
@@ -760,7 +784,21 @@ int cmd_command(const char* argString)
 	return 0;
 }
 
+int cmd_restoreFactory(const char* argString)
+{
+	omniSequencer.activeServo()->restoreFactorySettingsRequest();
+	myCLI.print("\n\r-->Sending restore factory request, make sure to synchronise configs after\r\n");
 
+	return 0;
+}
+
+int cmd_syncServoConfigs(const char* argString)
+{
+	omniSequencer.syncAllServoConfig();
+	myCLI.print("\n\r-->Syncing all servo configurations\r\n");
+
+	return 0;
+}
 
 
 //				sprintf(debugSerialOutBuffer, "Sending number of turns : %d\r\n", (int16_t)bufferData);
