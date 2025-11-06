@@ -129,7 +129,7 @@ public:
     void updateCurrentAndTemp();
 
 
-    PositionController pController = PositionController(0.1); // 10Hz
+    PositionController m_pController = PositionController(0.1); // 10Hz
 	uint8_t reqMotorID();
     float reqCurrentAngle();
     float reqTargetAngle();
@@ -172,11 +172,11 @@ private:
     ServoModes m_currentMode;
     WorkingUnits m_currentUnits;
 
-    float m_kpp;
-    float m_kdp;
-    float m_kip;
+//    float m_kpp;
+//    float m_kdp;
+//    float m_kip;
     float m_taup;
-    float m_PWMCountKip;
+//    float m_PWMCountKip;
 
     float m_kpv;
     float m_kdv;

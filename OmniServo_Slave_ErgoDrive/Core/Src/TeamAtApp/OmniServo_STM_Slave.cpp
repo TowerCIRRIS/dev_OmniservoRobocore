@@ -50,10 +50,13 @@ void OmniServo::loadDefaultConfig()
 {
 	// Asign values
 	m_motorID = 		OMNISERVO_DEFAULT_MOTOR_ID;
-	m_kpp = 			OMNISERVO_DEFAULT_KPP;
-	m_kdp = 			OMNISERVO_DEFAULT_KDP;
-	m_kip = 			OMNISERVO_DEFAULT_KIP;
-	m_PWMCountKip = 	((float)PWM_COUNT)/m_kip;
+//	m_kpp = 			OMNISERVO_DEFAULT_KPP;
+//	m_kdp = 			OMNISERVO_DEFAULT_KDP;
+//	m_kip = 			OMNISERVO_DEFAULT_KIP;
+	m_pController.setGains(OMNISERVO_DEFAULT_KPP, OMNISERVO_DEFAULT_KIP, OMNISERVO_DEFAULT_KDP);
+
+//	m_PWMCountKip = 	((float)PWM_COUNT)/m_kip;
+
     m_taup = 			OMNISERVO_DEFAULT_TAUP;
     m_kpv = 			OMNISERVO_DEFAULT_KPV;
     m_kdv = 			OMNISERVO_DEFAULT_KDV;
@@ -80,7 +83,6 @@ void OmniServo::init() {
 	{
 		HAL_GPIO_WritePin(MTR_PMODE_GPIO_Port, MTR_PMODE_Pin, GPIO_PIN_SET); // PWM Mode
 	}
-
 
 	changeControlEnable(false);
 	changeMode(DEFAULT_CONTROL_MODE);
@@ -121,14 +123,13 @@ void OmniServo::init() {
  */
 void OmniServo::restoreFactorySettings(bool keepID)
 {
+	uint8_t currentID = m_motorID;
+	loadDefaultConfig();
+
 	if (keepID) {
-		uint8_t currentID = m_motorID;
-		loadDefaultConfig();
 		m_motorID = currentID;
 	}
-	else {
-		loadDefaultConfig();
-	}
+
 	setConfigData();
 	m_config.startCode = 0xDEADBEEF;
 	m_config.stopCode = 0xDEADBEEF;
@@ -165,10 +166,13 @@ void OmniServo::asgPIDvalues(const float& p_kp, const float& p_kd,
  */
 void OmniServo::asgPIDpositionValues(const float& p_kp, const float& p_kd, 
     const float& p_ki) {
-    m_kpp = p_kp;
-    m_kdp = p_kd;
-    m_kip = p_ki;
-    m_PWMCountKip = ((float)PWM_COUNT)/m_kip;
+//    m_kpp = p_kp;
+//    m_kdp = p_kd;
+//    m_kip = p_ki;
+
+    m_pController.setGains(p_kp, p_ki, p_kd);
+
+   // m_PWMCountKip = ((float)PWM_COUNT)/m_kip;
     setConfigData();
     writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
 }
@@ -346,7 +350,11 @@ void OmniServo::changeWorkingUnits(WorkingUnits p_units) {
  */
 void OmniServo::sendComand(const float& p_command) {
     float command = p_command * m_refDirection;
-    if (m_currentUnits == DEGREES) {command = rad2deg(command);}
+
+    if (m_currentUnits == RADIANS)
+    {
+    	command = rad2deg(command);
+    }
     switch (m_currentMode)
     {
     case NOT_SET:
@@ -385,39 +393,43 @@ void OmniServo::updateCommand() {
 
     if (m_currentMode != ServoModes::NOT_SET && m_controlEnabled) {
         if (m_currentMode == ABS_POSITION || m_currentMode == INC_POSITION) {
-        	float currentError = m_targetAngle - m_currentAngle;
-        	float errorDiff = currentError - m_previousError;
 
-        	if (abs(currentError) <= ERROR_SUM_DELTA)
-        	{
-        		m_errorSum += (currentError*m_taup);
-        	}
+        	//compute(m_targetAngle, m_currentAngle, m_taup);
+        	m_driveCommand = (PWM_LIMIT / 100.0) * m_pController.update(m_currentAngle, m_targetAngle);
 
-        	//TODO optimiser: divisions inutiles à chaque appel
-//            if (m_errorSum > (float)PWM_COUNT/m_kip)
-//            {
-//            	m_errorSum = (float)PWM_COUNT/m_kip;
-//            }
-//			else if (m_errorSum < -(float)PWM_COUNT/m_kip)
+//        	float currentError = m_targetAngle - m_currentAngle;
+//        	float errorDiff = currentError - m_previousError;
+//
+//        	if (abs(currentError) <= ERROR_SUM_DELTA)
+//        	{
+//        		m_errorSum += (currentError*m_taup);
+//        	}
+//
+//        	//TODO optimiser: divisions inutiles à chaque appel
+////            if (m_errorSum > (float)PWM_COUNT/m_kip)
+////            {
+////            	m_errorSum = (float)PWM_COUNT/m_kip;
+////            }
+////			else if (m_errorSum < -(float)PWM_COUNT/m_kip)
+////			{
+////				m_errorSum = -(float)PWM_COUNT/m_kip;
+////			}
+//
+//            if (m_errorSum > m_PWMCountKip)
 //			{
-//				m_errorSum = -(float)PWM_COUNT/m_kip;
+//				m_errorSum = m_PWMCountKip;
 //			}
-
-            if (m_errorSum > m_PWMCountKip)
-			{
-				m_errorSum = m_PWMCountKip;
-			}
-			else if (m_errorSum < -m_PWMCountKip)
-			{
-				m_errorSum = -m_PWMCountKip;
-			}
-
-            float integralError = 0;
-            integralError = m_kip*m_errorSum;
-
-            m_driveCommand = m_kpp*currentError + m_kdp*(errorDiff/m_taup) + integralError;
-
-            m_previousError = currentError;
+//			else if (m_errorSum < -m_PWMCountKip)
+//			{
+//				m_errorSum = -m_PWMCountKip;
+//			}
+//
+//            float integralError = 0;
+//            integralError = m_kip*m_errorSum;
+//
+//            m_driveCommand = m_kpp*currentError + m_kdp*(errorDiff/m_taup) + integralError;
+//
+//            m_previousError = currentError;
         }
 
         else if (m_currentMode == SPEED)
@@ -779,9 +791,12 @@ void OmniServo::setConfigData() {
 	m_config.data.refDirection = m_refDirection;
 	m_config.data.centerReadAngle = m_centerReadAngle;
 	m_config.data.torqueConstant = m_torqueConstant;
-	m_config.data.kpp = m_kpp;
-	m_config.data.kdp = m_kdp;
-	m_config.data.kip = m_kip;
+//	m_config.data.kpp = m_kpp;
+//	m_config.data.kdp = m_kdp;
+//	m_config.data.kip = m_kip;
+	m_config.data.kpp = m_pController.m_Kp;
+	m_config.data.kdp = m_pController.m_Kd;
+	m_config.data.kip = m_pController.m_Ki;
 	m_config.data.kpv = m_kpv;
 	m_config.data.kdv = m_kdv;
 	m_config.data.kiv = m_kiv;
@@ -797,10 +812,11 @@ void OmniServo::applyConfigData() {
 	m_refDirection = m_config.data.refDirection;
 	m_centerReadAngle = m_config.data.centerReadAngle;
 	m_torqueConstant = m_config.data.torqueConstant;
-	m_kpp = m_config.data.kpp;
-	m_kdp = m_config.data.kdp;
-	m_kip = m_config.data.kip;
-	m_PWMCountKip = ((float)PWM_COUNT)/m_kip;
+	//m_kpp = m_config.data.kpp;
+	//m_kdp = m_config.data.kdp;
+	//m_kip = m_config.data.kip;
+	m_pController.setGains(m_config.data.kpp, m_config.data.kip, m_config.data.kdp);
+	//m_PWMCountKip = ((float)PWM_COUNT)/m_kip;
 	m_kpv = m_config.data.kpv;
 	m_kdv = m_config.data.kdv;
 	m_kiv = m_config.data.kiv;
