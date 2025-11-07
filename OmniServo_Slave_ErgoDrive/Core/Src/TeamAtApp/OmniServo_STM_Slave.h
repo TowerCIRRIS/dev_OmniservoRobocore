@@ -107,6 +107,9 @@ public:
     
 	#define KEEP_ID true
 	#define DONT_KEEP_ID false
+
+
+    void saveConfigToFlash();
 	void restoreFactorySettings(bool keepID);
 	ServoConfigInfo getConfigInfo();
 

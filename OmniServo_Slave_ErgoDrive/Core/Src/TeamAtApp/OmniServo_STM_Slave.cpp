@@ -128,6 +128,15 @@ void OmniServo::init() {
     m_initDone = true;
 }
 
+
+void OmniServo::saveConfigToFlash()
+{
+	setConfigData();
+	m_config.startCode = 0xDEADBEEF;
+	m_config.stopCode = 0xDEADBEEF;
+	m_config.backupStructVersion = BACKUP_STRUCT_VERSION;
+	writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+}
 /**
  * @brief Command to restore the factory settings of the servo
  * @param[in] keepID If true, the motor ID will be kept
@@ -143,11 +152,7 @@ void OmniServo::restoreFactorySettings(bool keepID)
 		m_motorID = currentID;
 	}
 
-	setConfigData();
-	m_config.startCode = 0xDEADBEEF;
-	m_config.stopCode = 0xDEADBEEF;
-	m_config.backupStructVersion = BACKUP_STRUCT_VERSION;
-	writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+	saveConfigToFlash();
 }
 
 
@@ -182,9 +187,6 @@ void OmniServo::asgPIDpositionValues(const float& p_kp, const float& p_kd,
 
     m_pController.setGains(p_kp, p_ki, p_kd);
 
-   // m_PWMCountKip = ((float)PWM_COUNT)/m_kip;
-    setConfigData();
-    writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
 }
 
 /**
@@ -200,8 +202,7 @@ void OmniServo::asgPIDspeedValues(const float& p_kp, const float& p_kd,
     m_kdv = p_kd;
     m_kiv = p_ki;
     m_PWMCountKiv = ((float)PWM_COUNT)/m_kiv;
-    setConfigData();
-    writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+
 }
 
 /**
@@ -211,7 +212,6 @@ void OmniServo::asgPIDspeedValues(const float& p_kp, const float& p_kd,
 void OmniServo::changeMotorID(const uint8_t& p_motorID) {
 	m_motorID = p_motorID;
     setConfigData();
-    writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
 }
 
 /**
@@ -346,8 +346,7 @@ bool OmniServo::getControlEnable()
  */
 void OmniServo::changeWorkingUnits(WorkingUnits p_units) {
 	m_currentUnits = p_units;
-    setConfigData();
-    writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+
 }
 
 /**
@@ -505,8 +504,7 @@ void OmniServo::setOrigin() {
 	if (m_currentMode != SPEED) {
 		m_originRef = m_encoder.getRawAngle();
 		resetTo360();
-	    setConfigData();
-	    writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+
 	}
 }
 
@@ -521,8 +519,7 @@ void OmniServo::setOrigin(const float& p_angle) {
 		if (m_currentUnits == RADIANS) {angle = rad2deg(angle);}
 		m_originRef = angle2raw(wrapTo360(angle));
 		resetTo360();
-	    setConfigData();
-	    writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+
 	}
 }
 
@@ -540,8 +537,7 @@ void OmniServo::setCurrentAngle(const float& p_angle) {
 		float currentTurns = ((int16_t)(angle) / 360);
 		if (angle < 0) {currentTurns += -1;}
 		resetTo360();
-	    setConfigData();
-	    writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+
 	    if (m_refDirection < 0) {currentTurns += 1;}
 	    setTurns(currentTurns*m_refDirection);
 	}
@@ -555,8 +551,7 @@ void OmniServo::switchRef() {
 	if (m_refDirection > 0) {m_refDirection = -1;}
 	else {m_refDirection = 1;}
 	resetTo360();
-	setConfigData();
-	writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+
 }
 
 /**
@@ -584,8 +579,7 @@ void OmniServo::setCenterReadAngle(const float& p_angle) {
 	if (m_currentUnits == RADIANS) {angle = rad2deg(angle);}
 	m_centerReadAngle = angle;
 	resetTo360();
-    setConfigData();
-    writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+
 }
 
 /**
@@ -626,8 +620,7 @@ void OmniServo::centerInitialRead() {
 void OmniServo::setTorqueConstant(const float& p_torqueConstant) {
 	m_torqueConstant = p_torqueConstant;
 	resetTo360();
-    setConfigData();
-    writeFlashConfig((uint32_t*)&m_config, sizeof(m_config)/4);
+
 }
 
 /**

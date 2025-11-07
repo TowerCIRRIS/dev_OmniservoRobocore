@@ -129,6 +129,11 @@ void manageReceivedData() {
 						case dataType_RestoreFactorySettings:
 							servo.restoreFactorySettings(KEEP_ID);
 							break;
+
+						case dataType_SaveConfigToFlash:
+							servo.saveConfigToFlash();
+							break;
+
 						case dataType_PositionPIDvalues:
 							rxComm.getData(dInfo, &rxPIDvalues, dInfo.dataLen);
 							if (rxPIDvalues.MotorID == servo.reqMotorID()) {
