@@ -123,7 +123,7 @@ OmniServoRCSequencer omniSequencer(OMNISERVO_COMM_BUFFER_SIZE,m_uart2TxBuffer,
 
 /* ------------------ Functions & Variables for the Example ------------------ */
 
-
+void printServoConfig(actuator_Omniservo* servo);
 /* ------------------- CLI & UART Declarations ------------------- */
 
 	// Declaration of the CLI callable functions
@@ -151,10 +151,11 @@ int cmd_listServos(const char* argString);
 int cmd_command(const char* argString);
 int cmd_restoreFactory(const char* argString);
 int cmd_syncServoConfigs(const char* argString);
+int cmd_saveServoConfigs(const char* argString);
 
 
 
-    const int numCliCommands = 23;
+    const int numCliCommands = 24;
 	CLI_FUNC_PTR commands_func[numCliCommands]{
     		 &cmd_getMotorInfo,
 			 &cmd_findServos,
@@ -178,7 +179,8 @@ int cmd_syncServoConfigs(const char* argString);
 			 &cmd_listServos,
 			 &cmd_command,
 			 &cmd_restoreFactory,
-			 &cmd_syncServoConfigs
+			 &cmd_syncServoConfigs,
+			 &cmd_saveServoConfigs
 
          };
 
@@ -205,7 +207,8 @@ int cmd_syncServoConfigs(const char* argString);
 			 "listservos",
 			 "c",
 			 "restorefactory",
-			 "syncservoconfigs"
+			 "syncservoconfigs",
+			 "saveconfigs"
          };
 
 
@@ -689,6 +692,98 @@ int cmd_changeServoId(const char* argString)
 	return 0;
 }
 
+
+void printServoConfig(actuator_Omniservo* servo)
+{
+	ServoConfigInfo configInfo = servo->getConfig();
+	char output[130];
+
+	if(configInfo.workingUnits == DEGREES)
+	{
+		sprintf(output, "\n\r\tWorking Units: Degrees");
+	}
+	else
+	{
+		sprintf(output, "\n\r\tWorking Units: Radians");
+	}
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tOrigin reference: %ld",configInfo.originRef);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tDirection: %ld",configInfo.refDirection);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tCenter Angle: %.2f deg.",configInfo.centerReadAngle);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tTorque Constant: %.2f mNm/A",configInfo.torqueConstant);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tPosition PID: Kp: %.2f \tKi: %.2f \tKd: %.2f",configInfo.kpp, configInfo.kip, configInfo.kdp);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tVelocity PID: Kp: %.2f \tKi: %.2f \tKd: %.2f",configInfo.kpv, configInfo.kiv, configInfo.kdv);
+	myCLI.print(output);
+	delay(1);
+
+	if(configInfo.driveMode == 0)
+	{
+		sprintf(output, "\n\r\tDrive Mode: Phase mode");
+	}
+	else
+	{
+		sprintf(output, "\n\r\tDrive Mode: PWM mode");
+	}
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tMax velocity: %.2f",configInfo.maxVelocity);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tMax acceleration: %.2f",configInfo.maxAcceleration);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tPosition Deadband: %.2f",configInfo.positionDeadband);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tMax Position: %.2f",configInfo.maxPosition);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tMin Position: %.2f",configInfo.minPosition);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tPosition Stall Threshold: %.2f",configInfo.positionStallThreshold);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tPosition Stall Timeout: %.2f",configInfo.positionStallTimeout);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tPosition Limits Enabled: %s",configInfo.positionLimitsEnabled ? "True" : "False");
+	myCLI.print(output);
+	delay(1);
+
+
+
+
+
+}
+
+
+
 int cmd_listServos(const char* argString)
 {
 	char output[130];
@@ -709,41 +804,7 @@ int cmd_listServos(const char* argString)
 			delay(50);
 		}
 
-		ServoConfigInfo configInfo = servo->getConfig();
-		if(configInfo.workingUnits == DEGREES)
-		{
-			sprintf(output, "\n\r\t\tWorking Units: Degrees");
-		}
-		else
-		{
-			sprintf(output, "\n\r\t\tWorking Units: Radians");
-		}
-		myCLI.print(output);
-		delay(1);
-
-		sprintf(output, "\n\r\t\tOrigin reference: %ld",configInfo.originRef);
-		myCLI.print(output);
-		delay(1);
-
-		sprintf(output, "\n\r\t\tDirection: %ld",configInfo.refDirection);
-		myCLI.print(output);
-		delay(1);
-
-		sprintf(output, "\n\r\t\tCenter Angle: %ld",configInfo.centerReadAngle);
-		myCLI.print(output);
-		delay(1);
-
-		sprintf(output, "\n\r\t\tTorque Constant: %.2f mNm/A",configInfo.torqueConstant);
-		myCLI.print(output);
-		delay(1);
-
-		sprintf(output, "\n\r\t\tPosition PID: Kp: %.2f \tKi: %.2f \tKd: %.2f",configInfo.kpp, configInfo.kip, configInfo.kdp);
-		myCLI.print(output);
-		delay(1);
-
-		sprintf(output, "\n\r\t\tVelocity PID: Kp: %.2f \tKi: %.2f \tKd: %.2f",configInfo.kpv, configInfo.kiv, configInfo.kdv);
-		myCLI.print(output);
-		delay(1);
+		printServoConfig(servo);
 
 	}
 	myCLI.print("\n\n\r ---- End of List ----\r\n");
@@ -799,6 +860,13 @@ int cmd_syncServoConfigs(const char* argString)
 
 	return 0;
 }
+
+int cmd_saveServoConfigs(const char* argString)
+{
+	omniSequencer.activeServo()->saveConfigToFlashRequest();
+	return 0;
+}
+
 
 
 //				sprintf(debugSerialOutBuffer, "Sending number of turns : %d\r\n", (int16_t)bufferData);
@@ -967,9 +1035,31 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 //TODO
 int cmd_getMotorInfo(const char* argString)
 {
-	myCLI.forcePrint("--> NOT IMPLEMENTED YET\r\n");
-	//myCLI.forcePrint("--> GetMotorInfo Success\r\n");
-	return 0;
+
+	actuator_Omniservo* servo;
+	if(isdigit(argString[0]))
+	{
+		servo = omniSequencer.getServo(atoi(argString));
+		if(servo == NULL)
+		{
+			myCLI.print("\n\n\r--> [ERROR]: No servo with this ID");
+			return ERROR_ARGUMENT_ERROR;
+		}
+	}
+	else if(argString[0] == '\0')
+	{
+		servo = omniSequencer.activeServo();
+	}
+	else
+	{
+		myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+		myCLI.print("\n\n\r\tOption 1: Enter servo ID");
+		return ERROR_ARGUMENT_ERROR;
+	}
+
+
+		printServoConfig(servo);
+	return ERROR_NO_ERROR;
 }
 
 //TODO
