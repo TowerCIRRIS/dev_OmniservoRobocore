@@ -13,6 +13,7 @@
 
 #define PWM_COUNT 2000
 #define PWM_LIMIT	(PWM_COUNT-1)
+
 #define PI 3.1416
 //#define VrefCurrentSense 2.7107 // Volts
 #define RrefCurrentSense 1000 // Ohms
@@ -55,9 +56,10 @@ void OmniServo::loadDefaultConfig()
 //	m_kip = 			OMNISERVO_DEFAULT_KIP;
 	m_pController.setGains(OMNISERVO_DEFAULT_KPP, OMNISERVO_DEFAULT_KIP, OMNISERVO_DEFAULT_KDP);
 
+
 //	m_PWMCountKip = 	((float)PWM_COUNT)/m_kip;
 
-    m_taup = 			OMNISERVO_DEFAULT_TAUP;
+   // m_taup = 			OMNISERVO_DEFAULT_TAUP;
     m_kpv = 			OMNISERVO_DEFAULT_KPV;
     m_kdv = 			OMNISERVO_DEFAULT_KDV;
     m_kiv = 			OMNISERVO_DEFAULT_KIV;
@@ -68,6 +70,17 @@ void OmniServo::loadDefaultConfig()
     m_centerReadAngle = OMNISERVO_DEFAULT_CENTERREADANGLE;
     m_torqueConstant = 	OMNISERVO_DEFAULT_TORQUE_CONSTANT;
     m_currentUnits = 	OMNISERVO_DEFAULT_WORKING_UNITS;
+
+
+	m_driveMode = DEFAULT_DRIVE_MODE;
+	m_pController.m_maxVelocity	= DEFAULT_MAX_VELOCITY;
+	m_pController.m_maxAcceleration	= DEFAULT_MAX_ACCELERATION;
+	m_pController.setDeadband(DEFAULT_DEADBAND);
+	m_pController.m_maxPosition = DEFAULT_MAX_POSITION;
+	m_pController.m_minPosition = DEFAULT_MIN_POSITION;
+	m_pController.m_stallThreshold = DEFAULT_POSITION_STALL_THRESHOLD;
+	m_pController.m_stallTimeout = DEFAULT_POSITION_STALL_TIMEOUT;
+	m_pController.m_limitsEnabled = DEFAULT_POSITION_LIMITS_ENABLED;
 
 }
 /**
@@ -166,9 +179,6 @@ void OmniServo::asgPIDvalues(const float& p_kp, const float& p_kd,
  */
 void OmniServo::asgPIDpositionValues(const float& p_kp, const float& p_kd, 
     const float& p_ki) {
-//    m_kpp = p_kp;
-//    m_kdp = p_kd;
-//    m_kip = p_ki;
 
     m_pController.setGains(p_kp, p_ki, p_kd);
 
@@ -256,6 +266,7 @@ void OmniServo::changeMode(ServoModes p_mode) {
         break;
     case ServoModes::TORQUE:
 		// Not implemented yet
+    case ServoModes::NOT_SET:
 	default: //Others not supported yet, disable control
 		changeControlEnable(false);
 //		 TIM2->CCR4 = 0;
@@ -394,42 +405,8 @@ void OmniServo::updateCommand() {
     if (m_currentMode != ServoModes::NOT_SET && m_controlEnabled) {
         if (m_currentMode == ABS_POSITION || m_currentMode == INC_POSITION) {
 
-        	//compute(m_targetAngle, m_currentAngle, m_taup);
-        	m_driveCommand = (PWM_LIMIT / 100.0) * m_pController.update(m_currentAngle, m_targetAngle);
-
-//        	float currentError = m_targetAngle - m_currentAngle;
-//        	float errorDiff = currentError - m_previousError;
-//
-//        	if (abs(currentError) <= ERROR_SUM_DELTA)
-//        	{
-//        		m_errorSum += (currentError*m_taup);
-//        	}
-//
-//        	//TODO optimiser: divisions inutiles à chaque appel
-////            if (m_errorSum > (float)PWM_COUNT/m_kip)
-////            {
-////            	m_errorSum = (float)PWM_COUNT/m_kip;
-////            }
-////			else if (m_errorSum < -(float)PWM_COUNT/m_kip)
-////			{
-////				m_errorSum = -(float)PWM_COUNT/m_kip;
-////			}
-//
-//            if (m_errorSum > m_PWMCountKip)
-//			{
-//				m_errorSum = m_PWMCountKip;
-//			}
-//			else if (m_errorSum < -m_PWMCountKip)
-//			{
-//				m_errorSum = -m_PWMCountKip;
-//			}
-//
-//            float integralError = 0;
-//            integralError = m_kip*m_errorSum;
-//
-//            m_driveCommand = m_kpp*currentError + m_kdp*(errorDiff/m_taup) + integralError;
-//
-//            m_previousError = currentError;
+        	m_driveCommand = m_PWMConvert * m_pController.update(m_currentAngle, m_targetAngle);
+        	m_pController.updateStallDetection();
         }
 
         else if (m_currentMode == SPEED)
@@ -791,15 +768,25 @@ void OmniServo::setConfigData() {
 	m_config.data.refDirection = m_refDirection;
 	m_config.data.centerReadAngle = m_centerReadAngle;
 	m_config.data.torqueConstant = m_torqueConstant;
-//	m_config.data.kpp = m_kpp;
-//	m_config.data.kdp = m_kdp;
-//	m_config.data.kip = m_kip;
 	m_config.data.kpp = m_pController.m_Kp;
 	m_config.data.kdp = m_pController.m_Kd;
 	m_config.data.kip = m_pController.m_Ki;
 	m_config.data.kpv = m_kpv;
 	m_config.data.kdv = m_kdv;
 	m_config.data.kiv = m_kiv;
+	m_config.data.driveMode = m_driveMode;
+
+
+	m_config.data.driveMode	 = m_driveMode;
+	m_config.data.maxVelocity = m_pController.m_maxVelocity;
+	m_config.data.maxAcceleration = m_pController.m_maxAcceleration;
+	m_config.data.positionDeadband = m_pController.m_deadband;
+	m_config.data.maxPosition = m_pController.m_maxPosition;
+	m_config.data.minPosition = m_pController.m_minPosition;
+	m_config.data.positionStallThreshold = m_pController.m_stallThreshold;
+	m_config.data.positionStallTimeout = m_pController.m_stallTimeout;
+	m_config.data.positionLimitsEnabled = m_pController.m_limitsEnabled;
+
 }
 
 /**
@@ -812,15 +799,23 @@ void OmniServo::applyConfigData() {
 	m_refDirection = m_config.data.refDirection;
 	m_centerReadAngle = m_config.data.centerReadAngle;
 	m_torqueConstant = m_config.data.torqueConstant;
-	//m_kpp = m_config.data.kpp;
-	//m_kdp = m_config.data.kdp;
-	//m_kip = m_config.data.kip;
 	m_pController.setGains(m_config.data.kpp, m_config.data.kip, m_config.data.kdp);
+
 	//m_PWMCountKip = ((float)PWM_COUNT)/m_kip;
 	m_kpv = m_config.data.kpv;
 	m_kdv = m_config.data.kdv;
 	m_kiv = m_config.data.kiv;
 	m_PWMCountKiv = ((float)PWM_COUNT)/m_kiv;
+
+	m_driveMode = m_config.data.driveMode;
+	m_pController.m_maxVelocity = m_config.data.maxVelocity;
+	m_pController.m_maxAcceleration = m_config.data.maxAcceleration;
+	m_pController.m_deadband = m_config.data.positionDeadband;
+	m_pController.m_maxPosition = m_config.data.maxPosition;
+	m_pController.m_minPosition = m_config.data.minPosition;
+	m_pController.m_stallThreshold = m_config.data.positionStallThreshold;
+	m_pController.m_stallTimeout = m_config.data.positionStallTimeout;
+	m_pController.m_limitsEnabled = m_config.data.positionLimitsEnabled;
 }
 
 /**

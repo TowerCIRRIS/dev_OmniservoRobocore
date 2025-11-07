@@ -19,19 +19,6 @@ typedef struct
 	uint32_t backupStructVersion = BACKUP_STRUCT_VERSION;
 
 	ServoConfigInfo data;
-//	uint32_t motorID;
-//	uint32_t workingUnits;
-//	int32_t originRef;
-//	int32_t refDirection;
-//	float centerReadAngle;
-//	float torqueConstant;
-//	float kpp;
-//	float kdp;
-//	float kip;
-//	float kpv;
-//	float kdv;
-//	float kiv;
-
 	uint32_t stopCode = 0xDEADBEEF;
 } __attribute__ ((aligned (4))) backupStruct_t;
 

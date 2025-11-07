@@ -22,6 +22,16 @@
 #define DRIVE_MODE_PWM			1
 #define DEFAULT_DRIVE_MODE		DRIVE_MODE_PHASE_ENABLE
 
+#define DEFAULT_MAX_VELOCITY				360.0	//deg/s
+#define DEFAULT_MAX_ACCELERATION			1000.0	//deg/s²
+#define DEFAULT_DEADBAND					0.1		//deg
+#define DEFAULT_MAX_POSITION				36000.0	//deg
+#define DEFAULT_MIN_POSITION				-36000.0//deg
+#define DEFAULT_POSITION_STALL_THRESHOLD 	90.0 //deg
+#define DEFAULT_POSITION_STALL_TIMEOUT		5.0 // seconds
+#define DEFAULT_POSITION_LIMITS_ENABLED 	false
+
+
 
 #define IDLE_MODE_BRAKE 		0
 #define IDLE_MODE_COAST			1
@@ -48,9 +58,9 @@
 //    m_torqueConstant = DEFAULT_TORQUE_CONSTANT;
 //    m_currentUnits = DEGREES;
 #define OMNISERVO_DEFAULT_MOTOR_ID  1
-#define OMNISERVO_DEFAULT_KPP       100.0
-#define OMNISERVO_DEFAULT_KDP       1.6
-#define OMNISERVO_DEFAULT_KIP       8.0
+#define OMNISERVO_DEFAULT_KPP       5
+#define OMNISERVO_DEFAULT_KDP       0.2
+#define OMNISERVO_DEFAULT_KIP       1.0
 #define OMNISERVO_DEFAULT_TAUP      0.01
 #define OMNISERVO_DEFAULT_KPV       0.4
 #define OMNISERVO_DEFAULT_KDV       0.0
@@ -61,6 +71,8 @@
 #define OMNISERVO_DEFAULT_CENTERREADANGLE 0.0
 #define OMNISERVO_DEFAULT_TORQUE_CONSTANT  DEFAULT_TORQUE_CONSTANT
 #define OMNISERVO_DEFAULT_WORKING_UNITS DEGREES
+
+#define DEFAULT_DEADBAND 0.1
 
 /**
  * @brief Possible usage modes of the servo
@@ -175,7 +187,7 @@ private:
 //    float m_kpp;
 //    float m_kdp;
 //    float m_kip;
-    float m_taup;
+//    float m_taup;
 //    float m_PWMCountKip;
 
     float m_kpv;
@@ -183,6 +195,9 @@ private:
     float m_kiv;
     float m_tauv;
     float m_PWMCountKiv;
+
+    /*PWM conversion factor from -100% to 100% to PWM counts*/
+    float m_PWMConvert = (2000 / 100.0); //TODO configurable
 
     int32_t m_originRef;
     int8_t m_refDirection;
