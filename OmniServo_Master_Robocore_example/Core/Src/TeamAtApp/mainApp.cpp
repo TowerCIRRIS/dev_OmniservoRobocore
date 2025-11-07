@@ -258,9 +258,6 @@ void setup() {
 	}
 	else
 	{
-		//sprintf(main_debugSerialOutBuffer, "\r\n-->Current Active Servo ID: %d\r\n", currentServo->getMotorID());
-		//myCLI.print(main_debugSerialOutBuffer);
-
 		// Print list of all detected servos and show their current parameters
 		cmd_listServos(NULL);
 	}
@@ -282,7 +279,6 @@ void loop() {
 	}
 
 	// Reading the serial buffer to check for any sent commands
-	//serialReading();
 	cliAppRun();
 
 	// Printing current servo values if printing is enabled
@@ -312,7 +308,7 @@ void loop() {
 							currentServo->getCurrentTorque(),
 							currentServo->getCurrentTemp());
 				}
-;
+
 				myCLI.forcePrint(main_debugSerialOutBuffer);
 			}
 		}
@@ -919,36 +915,6 @@ int cmd_saveServoConfigs(const char* argString)
 //	}
 //}
 
-//void switchServo(int servoId) {
-////    if (currentServo == &servo1) {currentServo = &servo2;}
-////    else {currentServo = &servo1;}
-//	//if (currentServo == omniSequencerRC.getServo(0)) {currentServo = omniSequencerRc.getServo(1);}
-//	//else {currentServo = omniSequencerRc.getServo(0);}
-//
-//	if(servoId >= 0)
-//	{
-////		currentRCServo = omniRCSeq.getServoByID(servoId);
-////		if(currentRCServo == NULL)
-////		{
-////			sprintf(main_debugSerialOutBuffer, "No servo with ID %d\r\n", servoId);
-////			myCLI.forcePrint(main_debugSerialOutBuffer);
-////			return;
-////		}
-//	}
-//	else
-//	{
-////		static int currentIndex = ;
-////		currentIndex++;
-////		if(currentIndex >= omniRCSeq.getNumServos())
-////		{
-////			currentIndex = 0;
-////		}
-////		currentRCServo = omniRCSeq.getServoByIndex(currentIndex);
-//	}
-
-//    sprintf(main_debugSerialOutBuffer, "On Servo #%d\r\n", omniSequencer.activeServo()->getMotorID());
-//    myCLI.forcePrint(main_debugSerialOutBuffer);
-//}
 
 /**
  * Cette fonction est un callback qui sera appelé par le gestionnaire de omniServo lorsque
@@ -967,34 +933,6 @@ uint8_t servoUart2TxCallback(int dataLen)
 }
 volatile HAL_StatusTypeDef uart2Rxstatus;
 
-//// Gestionnaire des interruptions de réception du port série
-//void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-//
-//	if(huart->Instance == huart2.Instance) {
-//		//omniSequencer.rxUartInterruptHandler((uint8_t*)&uart2_receivedChar, 1);
-//		omniRCSeq.rxUartInterruptHandler((uint8_t*)&uart2_receivedChar, 1);
-//		uart2Rxstatus = HAL_UART_Receive_IT(&huart2, (uint8_t*) &uart2_receivedChar, 1);
-//	}
-//
-//	//OmniServo::rxUartInterruptHandler(huart);
-//	if(huart->Instance == hlpuart1.Instance) {
-////		if (bufferPointer < bufferSize - 1) {
-////			inputBuffer[bufferPointer++] = uart_receivedChar;
-////		}
-//		serialRxCompleteCallback();
-//
-//	}
-//}
-
-//// Gestion du changement de mode du RS-485 après envoi du message
-//void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-//	//OmniServo::txUartInterruptHandler(huart);
-//	if(huart->Instance == huart2.Instance) {
-//		HAL_GPIO_WritePin(RS485_DIR_GPIO_Port, RS485_DIR_Pin, RS485_RX_ENABLE);
-//	}
-//
-//}
-
 
 // Gestionnaire des interruptions de réception du port série
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
@@ -1010,15 +948,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	}
 }
 
-//// Gestion du changement de mode du RS-485 après envoi du message
-//void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-//	//OmniServo::txUartInterruptHandler(huart);
-//	if(huart->Instance == huart2.Instance) {
-//		HAL_GPIO_WritePin(RS485_DIR_GPIO_Port, RS485_DIR_Pin, RS485_RX_ENABLE);
-//	}
-//
-//}
-
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if(huart->Instance == LPUART1)
@@ -1032,10 +961,9 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 	}
 }
 
-//TODO
+
 int cmd_getMotorInfo(const char* argString)
 {
-
 	actuator_Omniservo* servo;
 	if(isdigit(argString[0]))
 	{
