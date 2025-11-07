@@ -51,15 +51,8 @@ void OmniServo::loadDefaultConfig()
 {
 	// Asign values
 	m_motorID = 		OMNISERVO_DEFAULT_MOTOR_ID;
-//	m_kpp = 			OMNISERVO_DEFAULT_KPP;
-//	m_kdp = 			OMNISERVO_DEFAULT_KDP;
-//	m_kip = 			OMNISERVO_DEFAULT_KIP;
 	m_pController.setGains(OMNISERVO_DEFAULT_KPP, OMNISERVO_DEFAULT_KIP, OMNISERVO_DEFAULT_KDP);
 
-
-//	m_PWMCountKip = 	((float)PWM_COUNT)/m_kip;
-
-   // m_taup = 			OMNISERVO_DEFAULT_TAUP;
     m_kpv = 			OMNISERVO_DEFAULT_KPV;
     m_kdv = 			OMNISERVO_DEFAULT_KDV;
     m_kiv = 			OMNISERVO_DEFAULT_KIV;
@@ -224,11 +217,7 @@ void OmniServo::changeMode(ServoModes p_mode) {
 
     switch (p_mode)
     {
-//    case ServoModes::DISABLED:
-//        TIM2->CCR4 = 0;
-//        m_currentMode = DISABLED;
-//        HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_RESET);
-//        break;
+
     case ServoModes::ABS_POSITION:
         if (m_currentMode != ABS_POSITION) {
             if (m_currentMode != INC_POSITION) {
@@ -237,7 +226,6 @@ void OmniServo::changeMode(ServoModes p_mode) {
             changeControlEnable(false);
             m_errorSum = 0;
             m_currentMode = ABS_POSITION;
-            //Géré par changeControlEnable()  HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
 
             updateCommand();
 		}
@@ -250,7 +238,6 @@ void OmniServo::changeMode(ServoModes p_mode) {
             changeControlEnable(false);
             m_errorSum = 0;
             m_currentMode = INC_POSITION;
-            //Géré par changeControlEnable()  HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
             updateCommand();
         }
         break;
@@ -260,7 +247,6 @@ void OmniServo::changeMode(ServoModes p_mode) {
             changeControlEnable(false);
             m_targetSpeed = 0;
             m_errorSum = 0;
-           //Géré par changeControlEnable()  HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_SET);
             updateCommand();
         }
         break;
@@ -269,9 +255,6 @@ void OmniServo::changeMode(ServoModes p_mode) {
     case ServoModes::NOT_SET:
 	default: //Others not supported yet, disable control
 		changeControlEnable(false);
-//		 TIM2->CCR4 = 0;
-//		m_currentMode = DISABLED;
-//		HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_RESET);
 		break;
     }
 }
@@ -794,7 +777,6 @@ void OmniServo::applyConfigData() {
 	m_torqueConstant = m_config.data.torqueConstant;
 	m_pController.setGains(m_config.data.kpp, m_config.data.kip, m_config.data.kdp);
 
-	//m_PWMCountKip = ((float)PWM_COUNT)/m_kip;
 	m_kpv = m_config.data.kpv;
 	m_kdv = m_config.data.kdv;
 	m_kiv = m_config.data.kiv;

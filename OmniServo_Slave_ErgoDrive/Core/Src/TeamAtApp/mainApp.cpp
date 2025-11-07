@@ -188,8 +188,6 @@ void manageReceivedData() {
 
 						case dataType_MotorCommand:
 
-							//TODO lundi: LE moteur part et arrête pu mais on dirait qu'il ne reçoit plsu de commande.
-							//trouver pourquoi il part en couille
 							rxComm.getData(dInfo, (MotorCommand*)&rxMotorCommand, dInfo.dataLen);
 							if (rxMotorCommand.MotorID == servo.reqMotorID()) {
 								if ((ServoModes)rxMotorCommand.controlMode != servo.reqCurrentMode()) {
