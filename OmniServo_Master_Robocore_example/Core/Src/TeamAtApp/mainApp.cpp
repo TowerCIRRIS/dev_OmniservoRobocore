@@ -152,10 +152,10 @@ int cmd_command(const char* argString);
 int cmd_restoreFactory(const char* argString);
 int cmd_syncServoConfigs(const char* argString);
 int cmd_saveServoConfigs(const char* argString);
+int cmd_changeDriveMode(const char* argString);
 
 
-
-    const int numCliCommands = 24;
+    const int numCliCommands = 25;
 	CLI_FUNC_PTR commands_func[numCliCommands]{
     		 &cmd_getMotorInfo,
 			 &cmd_findServos,
@@ -180,7 +180,8 @@ int cmd_saveServoConfigs(const char* argString);
 			 &cmd_command,
 			 &cmd_restoreFactory,
 			 &cmd_syncServoConfigs,
-			 &cmd_saveServoConfigs
+			 &cmd_saveServoConfigs,
+			 &cmd_changeDriveMode
 
          };
 
@@ -208,7 +209,8 @@ int cmd_saveServoConfigs(const char* argString);
 			 "c",
 			 "restorefactory",
 			 "syncservoconfigs",
-			 "saveconfigs"
+			 "saveconfigs",
+			 "changedrivemode"
          };
 
 
@@ -860,6 +862,29 @@ int cmd_syncServoConfigs(const char* argString)
 int cmd_saveServoConfigs(const char* argString)
 {
 	omniSequencer.activeServo()->saveConfigToFlashRequest();
+	myCLI.print("\n\r-->Sending Configuration Save request");
+	return 0;
+}
+
+
+int cmd_changeDriveMode(const char* argString)
+{
+
+	if(strcmp(argString, "pwm") == 0 )
+	{
+		myCLI.print("\n\r-->Switching to PWM Drive mode, reboot recommended");
+		omniSequencer.activeServo()->changeDriveMode(DriveMode_PWM);
+	}
+	else if(strcmp(argString, "phase") == 0 )
+	{
+		myCLI.print("\n\r-->Switching to Phase + Enable drive mode");
+		omniSequencer.activeServo()->changeDriveMode(DriveMode_Phase);
+	}
+	else
+	{
+		myCLI.print("\n\rUnknown parameter, supported parameters: \n\r\tpwm: Switch to PWM Drive mode\n\r\tphase: Switch to Phase + Enable drive mode");
+
+	}
 	return 0;
 }
 
