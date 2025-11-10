@@ -81,17 +81,9 @@ void OmniServo::loadDefaultConfig()
  */
 void OmniServo::init() {
 
-	if(m_driveMode == DRIVE_MODE_PHASE_ENABLE)
-	{
-		HAL_GPIO_WritePin(MTR_PMODE_GPIO_Port, MTR_PMODE_Pin, GPIO_PIN_RESET); // PH/en Control Mode
-	}
-	else
-	{
-		HAL_GPIO_WritePin(MTR_PMODE_GPIO_Port, MTR_PMODE_Pin, GPIO_PIN_SET); // PWM Mode
-	}
-
 	changeControlEnable(false);
-	changeMode(DEFAULT_CONTROL_MODE);
+
+
 
     m_config.startCode = 0;
     m_config.stopCode = 0;
@@ -105,6 +97,19 @@ void OmniServo::init() {
 
 		restoreFactorySettings(DONT_KEEP_ID);
 	}
+
+	HAL_GPIO_WritePin(MTR_nSLEEP_GPIO_Port, MTR_nSLEEP_Pin, GPIO_PIN_RESET);
+	if(m_driveMode == DRIVE_MODE_PHASE_ENABLE)
+	{
+		HAL_GPIO_WritePin(MTR_PMODE_GPIO_Port, MTR_PMODE_Pin, GPIO_PIN_RESET); // PH/en Control Mode
+	}
+	else
+	{
+		HAL_GPIO_WritePin(MTR_PMODE_GPIO_Port, MTR_PMODE_Pin, GPIO_PIN_SET); // PWM Mode
+	}
+
+	//TODO Ajouter au config poru qu'il s'en rappelle??
+	changeMode(DEFAULT_CONTROL_MODE);
 
     HAL_ADC_Start_DMA(&hadc2, (uint32_t*)m_adcBuffer, 2);
     // Check the presence of the magnet for the encoder
@@ -375,6 +380,8 @@ void OmniServo::sendComand(const float& p_command) {
 void OmniServo::updateCommand() {
 
     float readAngle = getAdjustedAngle();
+
+    //TODO compute multiturn angle in a single function
     if (m_previousReadAngle >= 270 && readAngle <= 90) {
     	m_nbCurrentTurns += 1;
     }
@@ -390,21 +397,12 @@ void OmniServo::updateCommand() {
         	m_driveCommand = m_PWMConvert * m_pController.update(m_currentAngle, m_targetAngle);
         	m_pController.updateStallDetection();
         }
-
         else if (m_currentMode == SPEED)
         {
         	float currentError = m_targetSpeed - m_currentSpeed;
         	float errorDiff = currentError - m_previousError;
             m_errorSum += currentError*m_tauv;
 
-//            if (m_errorSum > (float)PWM_COUNT/m_kiv)
-//            {
-//            	m_errorSum = (float)PWM_COUNT/m_kiv;
-//            }
-//            else if (m_errorSum < -(float)PWM_COUNT/m_kiv)
-//            {
-//            	m_errorSum = -(float)PWM_COUNT/m_kiv;
-//            }
            if (m_errorSum > m_PWMCountKiv)
 		   {
         	   m_errorSum = m_PWMCountKiv;
@@ -439,8 +437,6 @@ void OmniServo::updateCommand() {
 			{
 				EN_IN1_PWM = (uint32_t)(-m_driveCommand);
 				PH_IN2_PWM = PWM_LIMIT; //anciennement: HAL_GPIO_WritePin(MTR_PH_GPIO_Port, MTR_PH_Pin, GPIO_PIN_RESET);
-
-
 			}
         }
         else //DRIVE_MODE_PWM
@@ -455,7 +451,6 @@ void OmniServo::updateCommand() {
 				PH_IN2_PWM = 0;
 			}
         }
-
 
     }
 }
@@ -722,6 +717,12 @@ float OmniServo::reqCurrentCurrent() {return m_currentCurrent;}
 float OmniServo::reqCurrentTemp() {return m_currentTemp;}
 
 float OmniServo::reqTorqueConstant() {return m_torqueConstant;}
+
+
+void OmniServo::setDriveMode(uint8_t driveMode)
+{
+	m_driveMode = driveMode;
+}
 
 /**
  * @brief Resets the servo to its default state

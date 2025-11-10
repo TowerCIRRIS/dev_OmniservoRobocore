@@ -89,6 +89,7 @@ void loop()
 // Gestionnaire de la réception de message
 void manageReceivedData() {
 	bool boolDataRx = false;
+	uint8_t uint8DataEx = 0;
 	int dataStatus = rxComm.validateData();
 	if (dataStatus == ATCOMM_SUCCESS) {
 		successfulCommFlag = true; // If any Servo message is successfully received, we acknowledge the master's activity
@@ -128,6 +129,11 @@ void manageReceivedData() {
 							break;
 						case dataType_RestoreFactorySettings:
 							servo.restoreFactorySettings(KEEP_ID);
+							break;
+
+						case dataType_DriveMode:
+							rxComm.getData(dInfo, &uint8DataEx, dInfo.dataLen);
+							servo.setDriveMode(uint8DataEx);
 							break;
 
 						case dataType_SaveConfigToFlash:

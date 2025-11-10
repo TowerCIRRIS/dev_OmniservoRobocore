@@ -157,6 +157,7 @@ public:
     float reqCurrentTemp();
     float reqTorqueConstant();
 
+    void setDriveMode(uint8_t driveMode);
     void reset();
 
 protected:
