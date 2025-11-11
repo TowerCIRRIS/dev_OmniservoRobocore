@@ -57,17 +57,19 @@
 //    m_centerReadAngle = 0;
 //    m_torqueConstant = DEFAULT_TORQUE_CONSTANT;
 //    m_currentUnits = DEGREES;
-#define OMNISERVO_DEFAULT_MOTOR_ID  1
-#define OMNISERVO_DEFAULT_KPP       5
-#define OMNISERVO_DEFAULT_KDP       0.2
-#define OMNISERVO_DEFAULT_KIP       1.0
-#define OMNISERVO_DEFAULT_TAUP      0.01
-#define OMNISERVO_DEFAULT_KPV       0.4
-#define OMNISERVO_DEFAULT_KDV       0.0
-#define OMNISERVO_DEFAULT_KIV       12.0
-#define OMNISERVO_DEFAULT_TAUV      0.1
-#define OMNISERVO_DEFAULT_ORIGINREF 0
-#define OMNISERVO_DEFAULT_REFDIR    1
+#define OMNISERVO_DEFAULT_MOTOR_ID  		1
+#define OMNISERVO_DEFAULT_KPP       		5
+#define OMNISERVO_DEFAULT_KDP       		0.2
+#define OMNISERVO_DEFAULT_KIP       		1.0
+#define OMNISERVO_DEFAULT_POSITION_FILTER	0.3
+#define OMNISERVO_DEFAULT_TAUP      		0.01
+#define OMNISERVO_DEFAULT_KPV       		0.4
+#define OMNISERVO_DEFAULT_KDV       		0.0
+#define OMNISERVO_DEFAULT_KIV       		12.0
+#define OMNISERVO_DEFAULT_VELOCITY_FILTER	0.0
+#define OMNISERVO_DEFAULT_TAUV      		0.1
+#define OMNISERVO_DEFAULT_ORIGINREF 		0
+#define OMNISERVO_DEFAULT_REFDIR    		1
 #define OMNISERVO_DEFAULT_CENTERREADANGLE 0.0
 #define OMNISERVO_DEFAULT_TORQUE_CONSTANT  DEFAULT_TORQUE_CONSTANT
 #define OMNISERVO_DEFAULT_WORKING_UNITS DEGREES
@@ -102,7 +104,12 @@ typedef enum {
 class OmniServo
 {
 public:
-    OmniServo();
+    OmniServo(float samplingRate)
+    	: m_pController(samplingRate)
+    {
+    	loadDefaultConfig();
+    }
+
     void init();
     
 	#define KEEP_ID true
@@ -113,12 +120,10 @@ public:
 	void restoreFactorySettings(bool keepID);
 	ServoConfigInfo getConfigInfo();
 
-    void asgPIDvalues(const float& p_kp, const float& p_kd,
-		const float& p_ki);
-    void asgPIDpositionValues(const float& p_kp, const float& p_kd, 
-        const float& p_ki);
-    void asgPIDspeedValues(const float& p_kp, const float& p_kd, 
-        const float& p_ki);
+    //void asgPIDvalues(const float& p_kp, const float& p_kd, const float& p_ki);
+    void asgPIDpositionValues(const float& p_kp, const float& p_kd, const float& p_ki, const float& p_filter);
+
+    void asgPIDspeedValues(const float& p_kp, const float& p_kd, const float& p_ki);
 
 	void changeMotorID(const uint8_t& p_motorID);
     void changeMode(ServoModes p_mode);
@@ -144,7 +149,7 @@ public:
     void updateCurrentAndTemp();
 
 
-    PositionController m_pController = PositionController(0.1); // 10Hz
+    PositionController m_pController;
 	uint8_t reqMotorID();
     float reqCurrentAngle();
     float reqTargetAngle();

@@ -38,10 +38,12 @@ float temps[nbTempValues] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 6
 /**
  * @brief Default constructor of the OmniServo object
  */
-OmniServo::OmniServo() {
-
-	loadDefaultConfig();
-}
+//OmniServo::OmniServo(uint32_t samplingTime){
+//
+//	//m_pController = PositionController(samplingTime); // 10Hz
+//	//m_pController.set
+//	loadDefaultConfig();
+//}
 
 /**
  * @brief Method to load the default configuration values into the object
@@ -52,10 +54,11 @@ void OmniServo::loadDefaultConfig()
 	// Asign values
 	m_motorID = 		OMNISERVO_DEFAULT_MOTOR_ID;
 	m_pController.setGains(OMNISERVO_DEFAULT_KPP, OMNISERVO_DEFAULT_KIP, OMNISERVO_DEFAULT_KDP);
-
+	m_pController.setDerivativeFilter(OMNISERVO_DEFAULT_POSITION_FILTER);
     m_kpv = 			OMNISERVO_DEFAULT_KPV;
     m_kdv = 			OMNISERVO_DEFAULT_KDV;
     m_kiv = 			OMNISERVO_DEFAULT_KIV;
+    //ADD Velocity filter later
     m_PWMCountKiv = 	((float)PWM_COUNT)/m_kiv;
     m_tauv = 			OMNISERVO_DEFAULT_TAUV;
     m_originRef = 		OMNISERVO_DEFAULT_ORIGINREF;
@@ -159,19 +162,19 @@ ServoConfigInfo OmniServo::getConfigInfo()
 	return m_config.data;
 }
 
-/**
- * @brief Command to change the PID values of the position or speed mode. Any position mode
- *        will change the PID values for all position modes.
- * @param[in] p_mode Targeted mode (Position or Speed)
- * @param[in] p_kp Proportional gain
- * @param[in] p_kd Derivative gain
- * @param[in] p_ki Integral gain
- */
-void OmniServo::asgPIDvalues(const float& p_kp, const float& p_kd,
-	const float& p_ki) {
-	if (m_currentMode == SPEED) {asgPIDspeedValues(p_kp, p_kd, p_ki);}
-	else {asgPIDpositionValues(p_kp, p_kd, p_ki);}
-}
+///**
+// * @brief Command to change the PID values of the position or speed mode. Any position mode
+// *        will change the PID values for all position modes.
+// * @param[in] p_mode Targeted mode (Position or Speed)
+// * @param[in] p_kp Proportional gain
+// * @param[in] p_kd Derivative gain
+// * @param[in] p_ki Integral gain
+// */
+//void OmniServo::asgPIDvalues(const float& p_kp, const float& p_kd,
+//	const float& p_ki) {
+//	if (m_currentMode == SPEED) {asgPIDspeedValues(p_kp, p_kd, p_ki);}
+//	else {asgPIDpositionValues(p_kp, p_kd, p_ki);}
+//}
 
 /**
  * @brief Command to change the PID values of the position modes
@@ -180,10 +183,14 @@ void OmniServo::asgPIDvalues(const float& p_kp, const float& p_kd,
  * @param[in] p_kd Derivative gain
  * @param[in] p_ki Integral gain
  */
-void OmniServo::asgPIDpositionValues(const float& p_kp, const float& p_kd, 
-    const float& p_ki) {
+void OmniServo::asgPIDpositionValues(const float& p_kp, const float& p_kd, const float& p_ki, const float& p_filter) {
 
     m_pController.setGains(p_kp, p_ki, p_kd);
+    m_pController.setDerivativeFilter(p_filter);
+    m_config.data.kpp = p_kp;
+    m_config.data.kip = p_ki;
+    m_config.data.kdp = p_kd;
+    m_config.data.positionFilter = p_filter;
 
 }
 
@@ -199,6 +206,9 @@ void OmniServo::asgPIDspeedValues(const float& p_kp, const float& p_kd,
     m_kpv = p_kp;
     m_kdv = p_kd;
     m_kiv = p_ki;
+    m_config.data.kpv = p_kp;
+    m_config.data.kiv = p_ki;
+    m_config.data.kdv = p_kd;
     m_PWMCountKiv = ((float)PWM_COUNT)/m_kiv;
 
 }
@@ -671,7 +681,17 @@ float OmniServo::reqTargetAngle() {
  * @return Current speed
  */
 float OmniServo::reqCurrentSpeed() {
-    float speed = m_currentSpeed * m_refDirection;
+    float speed;
+
+    if (m_currentMode == ABS_POSITION || m_currentMode == INC_POSITION) {
+    	speed = m_pController.getVelocity() * m_refDirection;
+    }
+    else
+    {
+    	speed = m_currentSpeed * m_refDirection;
+    }
+
+
     if (m_currentUnits == RADIANS) {speed = deg2rad(speed);}
     return speed;
 }
@@ -777,11 +797,14 @@ void OmniServo::applyConfigData() {
 	m_centerReadAngle = m_config.data.centerReadAngle;
 	m_torqueConstant = m_config.data.torqueConstant;
 	m_pController.setGains(m_config.data.kpp, m_config.data.kip, m_config.data.kdp);
+	m_pController.setDerivativeFilter(m_config.data.positionFilter);
 
 	m_kpv = m_config.data.kpv;
 	m_kdv = m_config.data.kdv;
 	m_kiv = m_config.data.kiv;
 	m_PWMCountKiv = ((float)PWM_COUNT)/m_kiv;
+	//TODO velocity filter
+
 
 	m_driveMode = m_config.data.driveMode;
 	m_pController.m_maxVelocity = m_config.data.maxVelocity;

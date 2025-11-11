@@ -3,7 +3,7 @@
 
 
 #include "atCommOmniServoDefines.h"
-#define BACKUP_STRUCT_VERSION   5
+#define BACKUP_STRUCT_VERSION   6
 /* Version 4
  * Includes the reference direction int
  */

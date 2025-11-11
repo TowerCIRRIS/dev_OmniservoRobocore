@@ -11,7 +11,7 @@
 
 char serialOutBuffer[300];	// Port série débug
 
-uint8_t timeoutCounter = 0; // reset after 0.5s (50 counts @ 100Hz)
+uint32_t timeoutCounter = 0; // reset after 0.5s (50 counts @ 100Hz)
 bool successfulCommFlag = false;
 
 bool sendCurrentAngleFlag = false;
@@ -28,7 +28,7 @@ bool sendMotorConfigInfoFlag = false;
 uint8_t speedFreqCount = 0;
 bool commandUpdateFlag = false;
 
-OmniServo servo;
+OmniServo servo(0.001);
 
 atComm txComm(ATCOMM_BUFFER_SIZE);
 atComm rxComm(ATCOMM_BUFFER_SIZE);
@@ -76,13 +76,38 @@ void setup()
 	HAL_UART_Receive_DMA(&huart3, (uint8_t*) &uart3_receivedChar, 1);
 }
 
+uint32_t tickCounter = 0;
+uint32_t counter_10ms = 0;
+uint32_t tickCounter1 = 0;
+uint32_t tickCounter2 = 0;
+uint32_t tickCounterLast = 0;
 void loop()
 {
 	manageReceivedData();
 	checkToSend();
 	if (commandUpdateFlag) {
 		commandUpdateFlag = false;
+		tickCounter1 = tickCounter - tickCounter2;
+
+		if(tickCounter1 > 1)
+		{
+			while(1);
+		}
+
+		if(servo.getControlEnable())
+		{
+			if(tickCounter - tickCounter2 > 1 && servo.getControlEnable())
+			{
+				while(1);
+			}
+		}
+		else
+		{
+			tickCounter = 0;
+		}
+
 		updateServoCommand();
+		tickCounter2 = tickCounter;
 	}
 }
 
@@ -143,7 +168,7 @@ void manageReceivedData() {
 						case dataType_PositionPIDvalues:
 							rxComm.getData(dInfo, &rxPIDvalues, dInfo.dataLen);
 							if (rxPIDvalues.MotorID == servo.reqMotorID()) {
-								servo.asgPIDpositionValues(rxPIDvalues.kp,rxPIDvalues.kd,rxPIDvalues.ki);
+								servo.asgPIDpositionValues(rxPIDvalues.kp,rxPIDvalues.kd,rxPIDvalues.ki, rxPIDvalues.filter);
 							}
 							break;
 						case dataType_VelocityPIDvalues:
@@ -351,21 +376,36 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 	}
 }
 
+
+
+
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
+
+
 		commandUpdateFlag = true;
-		if (successfulCommFlag || !servo.getControlEnable()) {
-			timeoutCounter = 0;
-			successfulCommFlag = false;
-		}
-		else {
-//TODO remettre, TEMPORAIRE
-//			timeoutCounter += 1;
-//			if (timeoutCounter >= 50) { // 0.5s for a timeout
-//				timeoutCounter = 0;
-//				rxComm.resetBuffer();
-//				servo.reset();
-//			}
+		tickCounter++;
+		counter_10ms++;
+		if(timeoutCounter>= 10)
+		{
+			counter_10ms = 0;
+			timeoutCounter++;
+			if (successfulCommFlag || !servo.getControlEnable())
+			{
+				timeoutCounter = 0;
+				successfulCommFlag = false;
+			}
+			else
+			{
+				//TODO remettre, TEMPORAIRE
+				//			timeoutCounter += 1;
+				//			if (timeoutCounter >= 50) { // 0.5s for a timeout
+				//				timeoutCounter = 0;
+				//				rxComm.resetBuffer();
+				//				servo.reset();
+				//			}
+			}
+
 		}
 	}
 }
