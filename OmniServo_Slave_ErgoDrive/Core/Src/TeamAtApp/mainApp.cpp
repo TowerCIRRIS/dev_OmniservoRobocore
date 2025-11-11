@@ -66,6 +66,7 @@ void setup()
 	HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
 
 	HAL_TIM_Base_Start_IT(&htim3);
+	HAL_TIM_Base_Start_IT(&htim6);
 
 	servo.init();
 	txComm.resetBuffer();
@@ -76,38 +77,58 @@ void setup()
 	HAL_UART_Receive_DMA(&huart3, (uint8_t*) &uart3_receivedChar, 1);
 }
 
-uint32_t tickCounter = 0;
-uint32_t counter_10ms = 0;
-uint32_t tickCounter1 = 0;
-uint32_t tickCounter2 = 0;
-uint32_t tickCounterLast = 0;
+volatile uint32_t tick_10khz = 0;
+volatile uint32_t tickCounter = 0;
+volatile uint32_t counter_10ms = 0;
+volatile uint32_t tickCounter1 = 0;
+volatile uint32_t tickCounter2 = 0;
+volatile uint32_t tickCounter3 = 0;
+volatile uint32_t tickCounter4 = 0;
+volatile uint32_t tickCounter4Last = 0;
+volatile uint32_t servoCommandTime = 0;
+volatile uint32_t tickCounter5 = 0;
+volatile uint32_t tickCounter6 = 0;
+volatile uint32_t tickCounterLast = 0;
+volatile uint32_t maxLoopTime =0;
+volatile uint32_t loopTime = 0;
+volatile float filteredloopTime = 0;
+volatile uint32_t commTime = 0;
+volatile uint32_t commTimeMax = 0;
 void loop()
 {
+	tickCounter1 = tick_10khz;
 	manageReceivedData();
+	tickCounter2 = tick_10khz;
 	checkToSend();
+	tickCounter3 = tick_10khz;
+
+	commTime = tickCounter3 - tickCounter1;
+	if(commTime > commTimeMax)
+	{
+		commTimeMax = commTime;
+	}
+
 	if (commandUpdateFlag) {
 		commandUpdateFlag = false;
-		tickCounter1 = tickCounter - tickCounter2;
 
-		if(tickCounter1 > 1)
-		{
-			while(1);
-		}
-
-		if(servo.getControlEnable())
-		{
-			if(tickCounter - tickCounter2 > 1 && servo.getControlEnable())
-			{
-				while(1);
-			}
-		}
-		else
-		{
-			tickCounter = 0;
-		}
-
+		tickCounter4 = tick_10khz;
+		servoCommandTime = tickCounter4 - tickCounter4Last;
+		tickCounter4Last = tickCounter4;
 		updateServoCommand();
-		tickCounter2 = tickCounter;
+		tickCounter5= tick_10khz - tickCounter4; // temps de calcul de la commande
+	}
+	tickCounterLast = tickCounter6;
+	tickCounter6= tick_10khz;
+	loopTime = (tickCounter6 - tickCounterLast);
+	if(loopTime > 5)
+	{
+		filteredloopTime++; // = (float)loopTime *0.001 + filteredloopTime*0.999;
+	}
+
+
+	if( loopTime > maxLoopTime)
+	{
+		maxLoopTime = loopTime ;
 	}
 }
 
@@ -382,7 +403,6 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	if (htim == &htim3) {
 
-
 		commandUpdateFlag = true;
 		tickCounter++;
 		counter_10ms++;
@@ -407,6 +427,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			}
 
 		}
+	}
+
+	if (htim == &htim6) {
+		tick_10khz++;
 	}
 }
 
