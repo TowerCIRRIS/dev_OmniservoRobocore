@@ -94,8 +94,11 @@ volatile uint32_t loopTime = 0;
 volatile float filteredloopTime = 0;
 volatile uint32_t commTime = 0;
 volatile uint32_t commTimeMax = 0;
+volatile uint32_t ledtimer = 0;
+
 void loop()
 {
+
 	tickCounter1 = tick_10khz;
 	manageReceivedData();
 	tickCounter2 = tick_10khz;
@@ -110,6 +113,13 @@ void loop()
 
 	if (commandUpdateFlag) {
 		commandUpdateFlag = false;
+
+		ledtimer++;
+		if(ledtimer >= 1000)
+		{
+			ledtimer = 0;
+			HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+		}
 
 		tickCounter4 = tick_10khz;
 		servoCommandTime = tickCounter4 - tickCounter4Last;
