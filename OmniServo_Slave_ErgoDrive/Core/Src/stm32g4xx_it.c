@@ -22,6 +22,7 @@
 #include "stm32g4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -88,20 +89,61 @@ void NMI_Handler(void)
   /* USER CODE END NonMaskableInt_IRQn 1 */
 }
 
-/**
-  * @brief This function handles Hard fault interrupt.
-  */
-void HardFault_Handler(void)
-{
-  /* USER CODE BEGIN HardFault_IRQn 0 */
 
-  /* USER CODE END HardFault_IRQn 0 */
-  while (1)
-  {
-    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
-    /* USER CODE END W1_HardFault_IRQn 0 */
-  }
+__attribute__((naked)) void HardFault_Handler(void)
+{
+    __asm volatile
+    (
+        "tst lr, #4        \n"      // Teste le bit 2 du LR pour savoir quelle pile est utilisée
+        "ite eq            \n"
+        "mrseq r0, msp     \n"      // Si 0 → Main Stack Pointer (MSP)
+        "mrsne r0, psp     \n"      // Si 1 → Process Stack Pointer (PSP)
+        "b HardFault_Handler_C \n"  // On saute vers notre fonction C avec l’adresse de la pile dans R0
+    );
 }
+
+void HardFault_Handler_C(uint32_t *stacked)
+{
+    uint32_t r0  = stacked[0];
+    uint32_t r1  = stacked[1];
+    uint32_t r2  = stacked[2];
+    uint32_t r3  = stacked[3];
+    uint32_t r12 = stacked[4];
+    uint32_t lr  = stacked[5];
+    uint32_t pc  = stacked[6];   // 🟩 l’adresse de l’instruction fautive !
+    uint32_t psr = stacked[7];
+
+    uint32_t cfsr = SCB->CFSR;
+    uint32_t hfsr = SCB->HFSR;
+    uint32_t bfar = SCB->BFAR;
+
+    printf("\n===== HardFault =====\n");
+    printf("R0  = 0x%08lX\nR1  = 0x%08lX\nR2  = 0x%08lX\nR3  = 0x%08lX\n", r0, r1, r2, r3);
+    printf("R12 = 0x%08lX\nLR  = 0x%08lX\nPC  = 0x%08lX\nPSR = 0x%08lX\n", r12, lr, pc, psr);
+    printf("CFSR = 0x%08lX  HFSR = 0x%08lX  BFAR = 0x%08lX\n", cfsr, hfsr, bfar);
+
+    if (cfsr & (1 << 16)) printf("→ UNDEFINSTR : instruction invalide.\n");
+    if (cfsr & (1 << 8))  printf("→ PRECISERR : BusFault précis.\n");
+    if (cfsr & (1 << 9))  printf("→ IMPRECISERR : BusFault imprécis.\n");
+    if (cfsr & (1 << 25)) printf("→ DIVBYZERO.\n");
+
+    while (1); // stop ici
+}
+
+///**
+//  * @brief This function handles Hard fault interrupt.
+//  */
+//void HardFault_Handler(void)
+//{
+//  /* USER CODE BEGIN HardFault_IRQn 0 */
+//
+//  /* USER CODE END HardFault_IRQn 0 */
+//  while (1)
+//  {
+//    /* USER CODE BEGIN W1_HardFault_IRQn 0 */
+//    /* USER CODE END W1_HardFault_IRQn 0 */
+//  }
+//}
 
 /**
   * @brief This function handles Memory management fault.

@@ -145,7 +145,8 @@ void loop()
 // Gestionnaire de la réception de message
 void manageReceivedData() {
 	bool boolDataRx = false;
-	uint8_t uint8DataEx = 0;
+	uint8_t uint8DataRx = 0;
+	float 	floatDataRx = 0;
 	int dataStatus = rxComm.validateData();
 	if (dataStatus == ATCOMM_SUCCESS) {
 		successfulCommFlag = true; // If any Servo message is successfully received, we acknowledge the master's activity
@@ -188,8 +189,8 @@ void manageReceivedData() {
 							break;
 
 						case dataType_DriveMode:
-							rxComm.getData(dInfo, &uint8DataEx, dInfo.dataLen);
-							servo.setDriveMode(uint8DataEx);
+							rxComm.getData(dInfo, &uint8DataRx, dInfo.dataLen);
+							servo.setDriveMode(uint8DataRx);
 							break;
 
 						case dataType_SaveConfigToFlash:
@@ -201,6 +202,18 @@ void manageReceivedData() {
 							if (rxPIDvalues.MotorID == servo.reqMotorID()) {
 								servo.asgPIDpositionValues(rxPIDvalues.kp,rxPIDvalues.kd,rxPIDvalues.ki, rxPIDvalues.filter);
 							}
+							break;
+
+						case dataType_setMaxVelocity:
+							rxComm.getData(dInfo, &floatDataRx, dInfo.dataLen);
+							servo.setMaxVelocity(floatDataRx);
+
+							break;
+						case dataType_setMaxAcceleration:
+							rxComm.getData(dInfo, &floatDataRx, dInfo.dataLen);
+							servo.setMaxAcceleration(floatDataRx);
+
+							break;
 							break;
 						case dataType_VelocityPIDvalues:
 							rxComm.getData(dInfo, &rxPIDvalues, dInfo.dataLen);

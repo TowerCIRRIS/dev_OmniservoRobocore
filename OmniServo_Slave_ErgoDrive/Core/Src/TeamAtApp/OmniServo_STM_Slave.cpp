@@ -404,7 +404,15 @@ void OmniServo::updateCommand() {
     if (m_currentMode != ServoModes::NOT_SET && m_controlEnabled) {
         if (m_currentMode == ABS_POSITION || m_currentMode == INC_POSITION) {
 
-        	m_driveCommand = m_PWMConvert * m_pController.update(m_currentAngle, m_targetAngle);
+//        	if(m_pController.m_maxVelocity > 1.0)
+//        	{
+//        		m_driveCommand = m_PWMConvert * m_pController.updateSmooth(m_currentAngle, m_targetAngle);
+//        	}
+//        	else
+//        	{
+        		m_driveCommand = m_PWMConvert * m_pController.update(m_currentAngle, m_targetAngle);
+        	//}
+
         	m_pController.updateStallDetection();
         }
         else if (m_currentMode == SPEED)
@@ -755,16 +763,28 @@ void OmniServo::reset() {
 	//NVIC_SystemReset();
 }
 
+void OmniServo::setMaxVelocity(float velocityMax)
+{
+	m_config.data.maxVelocity = velocityMax;
+	m_pController.setMaxVelocity(velocityMax);
+}
+
+void OmniServo::setMaxAcceleration(float accelMax)
+{
+	m_config.data.maxAcceleration = accelMax;
+	m_pController.setMaxAccceleration(accelMax);
+}
+
 /**
  * @brief Sets current values to the config structure
  */
 void OmniServo::setConfigData() {
-	m_config.data.motorID = m_motorID;
-	m_config.data.workingUnits = (uint8_t)m_currentUnits;
-	m_config.data.originRef = m_originRef;
-	m_config.data.refDirection = m_refDirection;
+	m_config.data.motorID 		= m_motorID;
+	m_config.data.workingUnits 	= (uint32_t)m_currentUnits;
+	m_config.data.originRef 	= m_originRef;
+	m_config.data.refDirection 	= m_refDirection;
 	m_config.data.centerReadAngle = m_centerReadAngle;
-	m_config.data.torqueConstant = m_torqueConstant;
+	m_config.data.torqueConstant 	= m_torqueConstant;
 	m_config.data.kpp = m_pController.m_Kp;
 	m_config.data.kdp = m_pController.m_Kd;
 	m_config.data.kip = m_pController.m_Ki;
@@ -804,7 +824,6 @@ void OmniServo::applyConfigData() {
 	m_kiv = m_config.data.kiv;
 	m_PWMCountKiv = ((float)PWM_COUNT)/m_kiv;
 	//TODO velocity filter
-
 
 	m_driveMode = m_config.data.driveMode;
 	m_pController.m_maxVelocity = m_config.data.maxVelocity;

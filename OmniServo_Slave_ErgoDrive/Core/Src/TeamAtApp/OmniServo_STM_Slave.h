@@ -165,6 +165,9 @@ public:
     void setDriveMode(uint8_t driveMode);
     void reset();
 
+    void setMaxVelocity(float velocityMax);
+    void setMaxAcceleration(float accelMax);
+
 protected:
 
     void loadDefaultConfig();
