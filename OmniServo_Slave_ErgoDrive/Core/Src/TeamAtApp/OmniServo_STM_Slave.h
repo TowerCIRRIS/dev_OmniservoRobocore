@@ -24,7 +24,7 @@
 
 #define DEFAULT_MAX_VELOCITY				360.0	//deg/s
 #define DEFAULT_MAX_ACCELERATION			1000.0	//deg/s²
-#define DEFAULT_DEADBAND					0.1		//deg
+#define DEFAULT_POSITION_DEADBAND					0.1		//deg
 #define DEFAULT_MAX_POSITION				36000.0	//deg
 #define DEFAULT_MIN_POSITION				-36000.0//deg
 #define DEFAULT_POSITION_STALL_THRESHOLD 	90.0 //deg
@@ -44,25 +44,12 @@
 #define PH_IN2_PWM  TIM4->CCR4
 
 
-//    m_kpp = 100; // 2.5; // 40 400
-//    m_kdp = 1.6; // 2.5; // 1.8 15
-//    m_kip = 8; // 2.5; // 8 0
-//    m_taup = 1/100.0;
-//    m_kpv = 0.05*8; // 2.5;
-//    m_kdv = 0*8; // 2.5;
-//    m_kiv = 1.5*8; // 2.5;
-//    m_tauv = 1.0/10.0;
-//    m_originRef = 0;
-//    m_refDirection = 1;
-//    m_centerReadAngle = 0;
-//    m_torqueConstant = DEFAULT_TORQUE_CONSTANT;
-//    m_currentUnits = DEGREES;
 #define OMNISERVO_DEFAULT_MOTOR_ID  		1
-#define OMNISERVO_DEFAULT_KPP       		5
-#define OMNISERVO_DEFAULT_KDP       		0.2
+#define OMNISERVO_DEFAULT_KPP       		15.0
+#define OMNISERVO_DEFAULT_KDP       		5.0
 #define OMNISERVO_DEFAULT_KIP       		1.0
-#define OMNISERVO_DEFAULT_POSITION_FILTER	0.3
-#define OMNISERVO_DEFAULT_TAUP      		0.01
+//#define OMNISERVO_DEFAULT_POSITION_FILTER	0.005
+#define OMNISERVO_DEFAULT_TAUP      		0.005
 #define OMNISERVO_DEFAULT_KPV       		0.4
 #define OMNISERVO_DEFAULT_KDV       		0.0
 #define OMNISERVO_DEFAULT_KIV       		12.0
@@ -74,7 +61,7 @@
 #define OMNISERVO_DEFAULT_TORQUE_CONSTANT  DEFAULT_TORQUE_CONSTANT
 #define OMNISERVO_DEFAULT_WORKING_UNITS DEGREES
 
-#define DEFAULT_DEADBAND 0.1
+#define DEFAULT_POSITION_DEADBAND 0.16
 
 /**
  * @brief Possible usage modes of the servo
@@ -104,9 +91,10 @@ typedef enum {
 class OmniServo
 {
 public:
-    OmniServo(float samplingRate)
-    	: m_pController(samplingRate)
+    OmniServo(float samplingTime)
+    	: m_pController(samplingTime)
     {
+    	m_sampleTime = samplingTime;
     	loadDefaultConfig();
     }
 
@@ -133,6 +121,7 @@ public:
 
     void sendComand(const float& p_command);
     void updateCommand();
+    void setMotorPwm(float motorPwmPercent); // TODO sortir de Omniservo pour devenir plsu indépendant du HW
 
     void resetTo360();
     void setOrigin();
@@ -145,6 +134,7 @@ public:
     void setTorqueConstant(const float& p_torqueConstant);
 
     float getAdjustedAngle();
+    float updateMultiturnAngle();
     void computeSpeed();
     void updateCurrentAndTemp();
 
@@ -168,6 +158,9 @@ public:
     void setMaxVelocity(float velocityMax);
     void setMaxAcceleration(float accelMax);
 
+    teamAT_AS5600 m_encoder = teamAT_AS5600(&hi2c1);
+    bool m_initDone = false;
+
 protected:
 
     void loadDefaultConfig();
@@ -189,8 +182,10 @@ protected:
 
 private:
 
-    bool m_initDone = false;
+
     uint8_t m_motorID;
+
+    float m_sampleTime;
 
     bool m_controlEnabled = false;
     ServoModes m_currentMode;
@@ -231,7 +226,7 @@ private:
     float m_previousError;
     float m_errorSum;
 
-    teamAT_AS5600 m_encoder = teamAT_AS5600(&hi2c1);
+
     uint16_t m_adcBuffer[2];
     float m_currentCurrent;
     float m_currentTemp;

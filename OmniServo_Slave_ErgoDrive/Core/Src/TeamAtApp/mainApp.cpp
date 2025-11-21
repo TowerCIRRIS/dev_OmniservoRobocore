@@ -6,10 +6,22 @@
 #include "mainApp.h"
 #include "stdio.h"
 
+#include "atCommOmniServoDefines.h"
+#include "atComm.h"
+#include "backupData_OmniServo.h"
+#include "OmniServo_STM_Slave.h"
+
 //TODO Gestion et partage des erreurs
 //TODO Optimisation de la comm au besoin
 
 char serialOutBuffer[300];	// Port série débug
+
+#define SERIAL_DATA_BUFFER_SIZE			1024
+#define ATCOMM_BUFFER_SIZE				1042
+
+extern atComm txComm;
+extern atComm rxComm;
+extern uint8_t serialDataBuffer[SERIAL_DATA_BUFFER_SIZE];
 
 uint32_t timeoutCounter = 0; // reset after 0.5s (50 counts @ 100Hz)
 bool successfulCommFlag = false;
@@ -27,6 +39,8 @@ bool sendMotorConfigInfoFlag = false;
 
 uint8_t speedFreqCount = 0;
 bool commandUpdateFlag = false;
+bool calibrateInertiaFlag = false;
+
 
 OmniServo servo(0.001);
 
@@ -124,7 +138,10 @@ void loop()
 		tickCounter4 = tick_10khz;
 		servoCommandTime = tickCounter4 - tickCounter4Last;
 		tickCounter4Last = tickCounter4;
+
 		updateServoCommand();
+
+
 		tickCounter5= tick_10khz - tickCounter4; // temps de calcul de la commande
 	}
 	tickCounterLast = tickCounter6;
@@ -143,21 +160,28 @@ void loop()
 }
 
 // Gestionnaire de la réception de message
-void manageReceivedData() {
+void manageReceivedData()
+{
 	bool boolDataRx = false;
 	uint8_t uint8DataRx = 0;
-	float 	floatDataRx = 0;
+	float floatDataRx = 0;
 	int dataStatus = rxComm.validateData();
-	if (dataStatus == ATCOMM_SUCCESS) {
+	if (dataStatus == ATCOMM_SUCCESS)
+	{
 		successfulCommFlag = true; // If any Servo message is successfully received, we acknowledge the master's activity
-		if (rxComm.getDestinationId() == servo.reqMotorID() || rxComm.getDestinationId() == BROADCAST) {
+		if (rxComm.getDestinationId()
+				== servo.reqMotorID() || rxComm.getDestinationId() == BROADCAST)
+		{
 			rxComm.lockBuffer();
 			int dataCount = rxComm.getDataCount();
-			if(dataCount > 0) {
-				for (int i = 0; i < dataCount; i++) {
+			if (dataCount > 0)
+			{
+				for (int i = 0; i < dataCount; i++)
+				{
 					dataInfo_t dInfo;
 					uint8_t uint8DataRx;
-					if(ATCOMM_SUCCESS == rxComm.getDataInfo(i,&dInfo)) {
+					if (ATCOMM_SUCCESS == rxComm.getDataInfo(i, &dInfo))
+					{
 						switch (dInfo.dataType)
 						{
 						case dataType_CurrentAngleRadReq:
@@ -199,8 +223,11 @@ void manageReceivedData() {
 
 						case dataType_PositionPIDvalues:
 							rxComm.getData(dInfo, &rxPIDvalues, dInfo.dataLen);
-							if (rxPIDvalues.MotorID == servo.reqMotorID()) {
-								servo.asgPIDpositionValues(rxPIDvalues.kp,rxPIDvalues.kd,rxPIDvalues.ki, rxPIDvalues.filter);
+							if (rxPIDvalues.MotorID == servo.reqMotorID())
+							{
+								servo.asgPIDpositionValues(rxPIDvalues.kp,
+										rxPIDvalues.kd, rxPIDvalues.ki,
+										rxPIDvalues.filter);
 							}
 							break;
 
@@ -217,45 +244,61 @@ void manageReceivedData() {
 							break;
 						case dataType_VelocityPIDvalues:
 							rxComm.getData(dInfo, &rxPIDvalues, dInfo.dataLen);
-							if (rxPIDvalues.MotorID == servo.reqMotorID()) {
-								servo.asgPIDspeedValues(rxPIDvalues.kp,rxPIDvalues.kd,rxPIDvalues.ki);
+							if (rxPIDvalues.MotorID == servo.reqMotorID())
+							{
+								servo.asgPIDspeedValues(rxPIDvalues.kp,
+										rxPIDvalues.kd, rxPIDvalues.ki);
 							}
 							break;
 						case dataType_UnitsCommand:
-							rxComm.getData(dInfo, &rxUnitsCommand, dInfo.dataLen);
-							if (rxUnitsCommand.MotorID == servo.reqMotorID()) {
-								servo.changeWorkingUnits((WorkingUnits)rxUnitsCommand.unitType);
+							rxComm.getData(dInfo, &rxUnitsCommand,
+								dInfo.dataLen);
+							if (rxUnitsCommand.MotorID == servo.reqMotorID())
+							{
+								servo.changeWorkingUnits(
+										(WorkingUnits) rxUnitsCommand.unitType);
 							}
 							break;
 						case dataType_ReferenceCommand:
-							rxComm.getData(dInfo, &rxReferenceCommand, dInfo.dataLen);
-							if (rxReferenceCommand.MotorID == servo.reqMotorID()) {
-								switch (rxReferenceCommand.refMode) {
-									case 0:
-										servo.setTurns(rxReferenceCommand.nbTurns);
-										break;
-									case 1:
-										servo.resetTo360();
-										break;
-									case 2:
-										servo.setOrigin();
-										break;
-									case 3:
-										servo.setOrigin(rxReferenceCommand.originAngle);
-										break;
-									case 4:
-										servo.setCurrentAngle(rxReferenceCommand.originAngle);
-										break;
-									default:
-										break;
+							rxComm.getData(dInfo, &rxReferenceCommand,
+								dInfo.dataLen);
+							if (rxReferenceCommand.MotorID
+									== servo.reqMotorID())
+							{
+								switch (rxReferenceCommand.refMode)
+								{
+								case 0:
+									servo.setTurns(rxReferenceCommand.nbTurns);
+									break;
+								case 1:
+									servo.resetTo360();
+									break;
+								case 2:
+									servo.setOrigin();
+									break;
+								case 3:
+									servo.setOrigin(
+										rxReferenceCommand.originAngle);
+									break;
+								case 4:
+									servo.setCurrentAngle(
+										rxReferenceCommand.originAngle);
+									break;
+								default:
+									break;
 								}
-								if (rxReferenceCommand.centerAngleFlag) {
-									servo.setCenterReadAngle(rxReferenceCommand.centerAngle);
+								if (rxReferenceCommand.centerAngleFlag)
+								{
+									servo.setCenterReadAngle(
+										rxReferenceCommand.centerAngle);
 								}
-								if (rxReferenceCommand.torqueConstantFlag) {
-									servo.setTorqueConstant(rxReferenceCommand.torqueConstant);
+								if (rxReferenceCommand.torqueConstantFlag)
+								{
+									servo.setTorqueConstant(
+										rxReferenceCommand.torqueConstant);
 								}
-								if (rxReferenceCommand.switchRefFlag) {
+								if (rxReferenceCommand.switchRefFlag)
+								{
 									servo.switchRef();
 								}
 							}
@@ -263,25 +306,35 @@ void manageReceivedData() {
 
 						case dataType_MotorCommand:
 
-							rxComm.getData(dInfo, (MotorCommand*)&rxMotorCommand, dInfo.dataLen);
-							if (rxMotorCommand.MotorID == servo.reqMotorID()) {
-								if ((ServoModes)rxMotorCommand.controlMode != servo.reqCurrentMode()) {
-									servo.changeMode((ServoModes)rxMotorCommand.controlMode);
-								}
-								else {
-									servo.sendComand(rxMotorCommand.command);
-								}
+						rxComm.getData(dInfo,
+							(MotorCommand*) &rxMotorCommand,
+							dInfo.dataLen);
+						if (rxMotorCommand.MotorID == servo.reqMotorID())
+						{
+							if ((ServoModes) rxMotorCommand.controlMode
+									!= servo.reqCurrentMode())
+							{
+								servo.changeMode(
+										(ServoModes) rxMotorCommand.controlMode);
 							}
-							break;
+							else
+							{
+								servo.sendComand(rxMotorCommand.command);
+							}
+						}
+						break;
 
 						case dataType_ControlEnableRequest:
-							rxComm.getData(dInfo, (bool*)&boolDataRx, dInfo.dataLen);
+							rxComm.getData(dInfo, (bool*) &boolDataRx,
+								dInfo.dataLen);
 							servo.changeControlEnable(boolDataRx);
 							break;
 
 						case dataType_ChangeID:
-							rxComm.getData(dInfo, &motorIdChangeBuffer, dInfo.dataLen);
-							if(motorIdChangeBuffer.MotorID == servo.reqMotorID())
+							rxComm.getData(dInfo, &motorIdChangeBuffer,
+								dInfo.dataLen);
+							if (motorIdChangeBuffer.MotorID
+									== servo.reqMotorID())
 							{
 								servo.changeMotorID(motorIdChangeBuffer.newID);
 							}
@@ -290,9 +343,8 @@ void manageReceivedData() {
 
 						case dataType_ChangeModeRequest:
 							rxComm.getData(dInfo, &uint8DataRx, dInfo.dataLen);
-							servo.changeMode((ServoModes)uint8DataRx);
+							servo.changeMode((ServoModes) uint8DataRx);
 							break;
-
 
 						case dataType_Reset:
 							servo.reset();
@@ -301,10 +353,10 @@ void manageReceivedData() {
 						case dataType_TorqueConstantReq:
 							sendTorqueConstantFlag = true;
 							break;
-						// Implement other cases
+							// Implement other cases
 						default:
 							// Unknown data type, ignore or handle error
-						break;
+							break;
 						}
 					}
 				}
@@ -315,11 +367,14 @@ void manageReceivedData() {
 	}
 }
 
-bool dataToSend() {
-	return (sendCurrentAngleFlag || sendCurrentSpeedFlag || sendCurrentModeFlag || sendCurrentUnitsFlag
-			|| sendCurrentCurrentFlag || sendCurrentTempFlag || sendTorqueConstantFlag || sendCurrentIdFlag
-			|| sendMotorConfigInfoFlag);
+bool dataToSend()
+{
+	return (sendCurrentAngleFlag || sendCurrentSpeedFlag || sendCurrentModeFlag
+			|| sendCurrentUnitsFlag || sendCurrentCurrentFlag
+			|| sendCurrentTempFlag || sendTorqueConstantFlag
+			|| sendCurrentIdFlag || sendMotorConfigInfoFlag);
 }
+
 // Gestionnaire de l'envoi de message
 void checkToSend() {
 
@@ -401,6 +456,8 @@ void updateServoCommand() {
 	}
 }
 
+
+
 // Gestionnaire des interruptions de réception du port série
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	if(huart->Instance == huart3.Instance)
@@ -420,12 +477,44 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 	}
 }
 
+void HAL_I2C_MasterTxCpltCallback(I2C_HandleTypeDef *hi2c) {
+	if (hi2c->Instance == hi2c1.Instance) {
+		if (servo.m_encoder.handleTxComplete() != HAL_OK) {
+			while (1) {
+			}
+		}
+	}
+}
+
+void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
+{
+	if(hi2c->Instance == hi2c1.Instance)
+	{
+		if(servo.m_encoder.handleRxComplete() < 0)
+		{
+			while(1);
+		}
+	}
+}
 
 
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim == &htim6) {
+		tick_10khz++;
+	}
+	
 	if (htim == &htim3) {
 
+		if(servo.m_initDone)
+		{
+			int stat = servo.m_encoder.refreshRawAngle_DMA();
+	//			if(stat != HAL_OK)
+//			{
+//				while(1); //TODO gestion erreurs
+//			}
+
+		}      
 		commandUpdateFlag = true;
 		tickCounter++;
 		counter_10ms++;
@@ -452,9 +541,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		}
 	}
 
-	if (htim == &htim6) {
-		tick_10khz++;
-	}
+
 }
 
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {

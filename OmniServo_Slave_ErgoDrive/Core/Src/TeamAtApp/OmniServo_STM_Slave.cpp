@@ -54,7 +54,7 @@ void OmniServo::loadDefaultConfig()
 	// Asign values
 	m_motorID = 		OMNISERVO_DEFAULT_MOTOR_ID;
 	m_pController.setGains(OMNISERVO_DEFAULT_KPP, OMNISERVO_DEFAULT_KIP, OMNISERVO_DEFAULT_KDP);
-	m_pController.setDerivativeFilter(OMNISERVO_DEFAULT_POSITION_FILTER);
+	m_pController.setPositionFilter(OMNISERVO_DEFAULT_TAUP);
     m_kpv = 			OMNISERVO_DEFAULT_KPV;
     m_kdv = 			OMNISERVO_DEFAULT_KDV;
     m_kiv = 			OMNISERVO_DEFAULT_KIV;
@@ -69,14 +69,13 @@ void OmniServo::loadDefaultConfig()
 
 
 	m_driveMode = DEFAULT_DRIVE_MODE;
-	m_pController.m_maxVelocity	= DEFAULT_MAX_VELOCITY;
-	m_pController.m_maxAcceleration	= DEFAULT_MAX_ACCELERATION;
-	m_pController.setDeadband(DEFAULT_DEADBAND);
-	m_pController.m_maxPosition = DEFAULT_MAX_POSITION;
-	m_pController.m_minPosition = DEFAULT_MIN_POSITION;
-	m_pController.m_stallThreshold = DEFAULT_POSITION_STALL_THRESHOLD;
-	m_pController.m_stallTimeout = DEFAULT_POSITION_STALL_TIMEOUT;
-	m_pController.m_limitsEnabled = DEFAULT_POSITION_LIMITS_ENABLED;
+	// Use setters instead of direct member access (encapsulation)
+	m_pController.setMaxVelocity(DEFAULT_MAX_VELOCITY);
+	m_pController.setMaxAccceleration(DEFAULT_MAX_ACCELERATION);
+	m_pController.setDeadband(DEFAULT_POSITION_DEADBAND);
+	m_pController.setPositionLimits(DEFAULT_MIN_POSITION, DEFAULT_MAX_POSITION);
+	m_pController.setStallDetection(DEFAULT_POSITION_STALL_THRESHOLD, DEFAULT_POSITION_STALL_TIMEOUT);
+	m_pController.enableLimits(DEFAULT_POSITION_LIMITS_ENABLED);
 
 }
 /**
@@ -85,8 +84,6 @@ void OmniServo::loadDefaultConfig()
 void OmniServo::init() {
 
 	changeControlEnable(false);
-
-
 
     m_config.startCode = 0;
     m_config.stopCode = 0;
@@ -116,14 +113,28 @@ void OmniServo::init() {
 
     HAL_ADC_Start_DMA(&hadc2, (uint32_t*)m_adcBuffer, 2);
     // Check the presence of the magnet for the encoder
-    if(m_encoder.detectMagnet() == 0  && FORCE_MAGNET_DETECTION) {
-        while(true) {
-            if(m_encoder.detectMagnet() == 1 ) {
-                break;
-            }
-            HAL_Delay(1000);
-        }
+
+    HAL_Delay(1);
+    HAL_StatusTypeDef status = m_encoder.refreshMagnetStatus();
+
+    if(status != HAL_OK)
+    {
+    	while(1); //TODO gestion erreurs
     }
+
+    if(m_encoder.detectMagnet() == 0){
+    	while(1);//TODO gestion erreurs
+    }
+
+
+//    if(m_encoder.detectMagnet() == 0  && FORCE_MAGNET_DETECTION) {
+//        while(true) {
+//            if(m_encoder.detectMagnet() == 1 ) {
+//                break;
+//            }
+//            HAL_Delay(1000);
+//        }
+//    }
     centerInitialRead();
 
     m_initDone = true;
@@ -186,7 +197,7 @@ ServoConfigInfo OmniServo::getConfigInfo()
 void OmniServo::asgPIDpositionValues(const float& p_kp, const float& p_kd, const float& p_ki, const float& p_filter) {
 
     m_pController.setGains(p_kp, p_ki, p_kd);
-    m_pController.setDerivativeFilter(p_filter);
+    m_pController.setPositionFilter(p_filter);
     m_config.data.kpp = p_kp;
     m_config.data.kip = p_ki;
     m_config.data.kdp = p_kd;
@@ -389,17 +400,19 @@ void OmniServo::sendComand(const float& p_command) {
  */
 void OmniServo::updateCommand() {
 
-    float readAngle = getAdjustedAngle();
+//    float readAngle = getAdjustedAngle();
+//
+//
+////    if (m_previousReadAngle >= 270 && readAngle <= 90) {
+////    	m_nbCurrentTurns += 1;
+////    }
+////    else if (m_previousReadAngle <= 90 && readAngle >= 270) {
+////    	m_nbCurrentTurns += -1;
+////    }
+//    m_currentAngle = readAngle + 360.0 * m_nbCurrentTurns;
+//    m_previousReadAngle = readAngle;
+	updateMultiturnAngle();
 
-    //TODO compute multiturn angle in a single function
-    if (m_previousReadAngle >= 270 && readAngle <= 90) {
-    	m_nbCurrentTurns += 1;
-    }
-    else if (m_previousReadAngle <= 90 && readAngle >= 270) {
-    	m_nbCurrentTurns += -1;
-    }
-    m_currentAngle = readAngle + 360.0*m_nbCurrentTurns;
-    m_previousReadAngle = readAngle;
 
     if (m_currentMode != ServoModes::NOT_SET && m_controlEnabled) {
         if (m_currentMode == ABS_POSITION || m_currentMode == INC_POSITION) {
@@ -434,43 +447,44 @@ void OmniServo::updateCommand() {
             m_previousError = currentError;
         }
 
-        // Updates the drive command
-        //Limitccr
-        if (m_driveCommand > PWM_LIMIT)
-        {
-        	m_driveCommand = PWM_LIMIT;
-        }
-        else if (m_driveCommand < -PWM_LIMIT)
-        {
-        	m_driveCommand = -PWM_LIMIT;
-        }
 
-        if(m_driveMode == DRIVE_MODE_PHASE_ENABLE)
-        {
-        	if (m_driveCommand > 0.0) {
-        		EN_IN1_PWM = (uint32_t)(m_driveCommand);
-        		PH_IN2_PWM = 0; //anciennement: HAL_GPIO_WritePin(MTR_PH_GPIO_Port, MTR_PH_Pin, GPIO_PIN_SET);
-			}
-			else
-			{
-				EN_IN1_PWM = (uint32_t)(-m_driveCommand);
-				PH_IN2_PWM = PWM_LIMIT; //anciennement: HAL_GPIO_WritePin(MTR_PH_GPIO_Port, MTR_PH_Pin, GPIO_PIN_RESET);
-			}
-        }
-        else //DRIVE_MODE_PWM
-        {
-        	if (m_driveCommand > 0) {
-				EN_IN1_PWM =  0; //;
-				PH_IN2_PWM = (uint32_t)(m_driveCommand);
-			}
-			else {
+        setMotorPwm(m_driveCommand);
 
-				EN_IN1_PWM = (uint32_t)(-m_driveCommand);
-				PH_IN2_PWM = 0;
-			}
-        }
 
     }
+}
+
+//TODO
+void OmniServo::setMotorPwm(float motorPwmPercent)
+ {
+	// Updates the drive command
+	//Limitccr
+	if (motorPwmPercent > PWM_LIMIT) {
+		motorPwmPercent = PWM_LIMIT;
+	} else if (motorPwmPercent < -PWM_LIMIT) {
+		motorPwmPercent = -PWM_LIMIT;
+	}
+
+	if (m_driveMode == DRIVE_MODE_PHASE_ENABLE) {
+		if (motorPwmPercent > 0.0) {
+			EN_IN1_PWM = (uint32_t) (motorPwmPercent);
+			PH_IN2_PWM = 0; //anciennement: HAL_GPIO_WritePin(MTR_PH_GPIO_Port, MTR_PH_Pin, GPIO_PIN_SET);
+		} else {
+			EN_IN1_PWM = (uint32_t) (-motorPwmPercent);
+			PH_IN2_PWM = PWM_LIMIT; //anciennement: HAL_GPIO_WritePin(MTR_PH_GPIO_Port, MTR_PH_Pin, GPIO_PIN_RESET);
+		}
+	} else //DRIVE_MODE_PWM
+	{
+		if (motorPwmPercent > 0) {
+			EN_IN1_PWM = 0; //;
+			PH_IN2_PWM = (uint32_t) (motorPwmPercent);
+		} else {
+
+			EN_IN1_PWM = (uint32_t) (-motorPwmPercent);
+			PH_IN2_PWM = 0;
+		}
+	}
+
 }
 
 /**
@@ -631,6 +645,28 @@ float OmniServo::getAdjustedAngle() {
 }
 
 /**
+ * @brief Reads the encoder and updates the multiturn angle and sets it to its member variable
+ * @return Current multiturn angle
+ */
+float OmniServo::updateMultiturnAngle()
+{
+
+	float readAngle = getAdjustedAngle();
+
+	if (m_previousReadAngle >= 270 && readAngle <= 90) {
+		m_nbCurrentTurns += 1;
+	}
+	else if (m_previousReadAngle <= 90 && readAngle >= 270) {
+		m_nbCurrentTurns += -1;
+	}
+
+	m_previousReadAngle = readAngle;
+	m_currentAngle = readAngle + 360.0 * m_nbCurrentTurns;
+
+	return m_currentAngle;
+}
+
+/**
  * @brief Compute the current speed and sets it to its member variable
  */
 void OmniServo::computeSpeed() {
@@ -775,6 +811,9 @@ void OmniServo::setMaxAcceleration(float accelMax)
 	m_pController.setMaxAccceleration(accelMax);
 }
 
+
+
+
 /**
  * @brief Sets current values to the config structure
  */
@@ -785,9 +824,9 @@ void OmniServo::setConfigData() {
 	m_config.data.refDirection 	= m_refDirection;
 	m_config.data.centerReadAngle = m_centerReadAngle;
 	m_config.data.torqueConstant 	= m_torqueConstant;
-	m_config.data.kpp = m_pController.m_Kp;
-	m_config.data.kdp = m_pController.m_Kd;
-	m_config.data.kip = m_pController.m_Ki;
+	m_config.data.kpp = m_pController.getKp();
+	m_config.data.kdp = m_pController.getKd();
+	m_config.data.kip = m_pController.getKi();
 	m_config.data.kpv = m_kpv;
 	m_config.data.kdv = m_kdv;
 	m_config.data.kiv = m_kiv;
@@ -795,14 +834,14 @@ void OmniServo::setConfigData() {
 
 
 	m_config.data.driveMode	 = m_driveMode;
-	m_config.data.maxVelocity = m_pController.m_maxVelocity;
-	m_config.data.maxAcceleration = m_pController.m_maxAcceleration;
-	m_config.data.positionDeadband = m_pController.m_deadband;
-	m_config.data.maxPosition = m_pController.m_maxPosition;
-	m_config.data.minPosition = m_pController.m_minPosition;
-	m_config.data.positionStallThreshold = m_pController.m_stallThreshold;
-	m_config.data.positionStallTimeout = m_pController.m_stallTimeout;
-	m_config.data.positionLimitsEnabled = m_pController.m_limitsEnabled;
+	m_config.data.maxVelocity = m_pController.getMaxVelocity();
+	m_config.data.maxAcceleration = m_pController.getMaxAcceleration();
+	m_config.data.positionDeadband = m_pController.getDeadband();
+	m_config.data.maxPosition = m_pController.getMaxPosition();
+	m_config.data.minPosition = m_pController.getMinPosition();
+	m_config.data.positionStallThreshold = m_pController.getStallThreshold();
+	m_config.data.positionStallTimeout = m_pController.getStallTimeout();
+	m_config.data.positionLimitsEnabled = m_pController.getLimitsEnabled();
 
 }
 
@@ -817,7 +856,7 @@ void OmniServo::applyConfigData() {
 	m_centerReadAngle = m_config.data.centerReadAngle;
 	m_torqueConstant = m_config.data.torqueConstant;
 	m_pController.setGains(m_config.data.kpp, m_config.data.kip, m_config.data.kdp);
-	m_pController.setDerivativeFilter(m_config.data.positionFilter);
+	m_pController.setPositionFilter(m_config.data.positionFilter);
 
 	m_kpv = m_config.data.kpv;
 	m_kdv = m_config.data.kdv;
@@ -826,14 +865,12 @@ void OmniServo::applyConfigData() {
 	//TODO velocity filter
 
 	m_driveMode = m_config.data.driveMode;
-	m_pController.m_maxVelocity = m_config.data.maxVelocity;
-	m_pController.m_maxAcceleration = m_config.data.maxAcceleration;
-	m_pController.m_deadband = m_config.data.positionDeadband;
-	m_pController.m_maxPosition = m_config.data.maxPosition;
-	m_pController.m_minPosition = m_config.data.minPosition;
-	m_pController.m_stallThreshold = m_config.data.positionStallThreshold;
-	m_pController.m_stallTimeout = m_config.data.positionStallTimeout;
-	m_pController.m_limitsEnabled = m_config.data.positionLimitsEnabled;
+	m_pController.setMaxVelocity(m_config.data.maxVelocity);
+	m_pController.setMaxAccceleration(m_config.data.maxAcceleration);
+	m_pController.setDeadband(m_config.data.positionDeadband);
+	m_pController.setPositionLimits(m_config.data.minPosition, m_config.data.maxPosition);
+	m_pController.setStallDetection(m_config.data.positionStallThreshold, m_config.data.positionStallTimeout);
+	m_pController.enableLimits(m_config.data.positionLimitsEnabled);
 }
 
 /**
