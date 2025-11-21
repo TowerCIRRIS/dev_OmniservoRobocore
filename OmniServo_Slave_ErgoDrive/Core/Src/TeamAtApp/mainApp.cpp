@@ -12,9 +12,9 @@
 #include "OmniServo_STM_Slave.h"
 
 //TODO Gestion et partage des erreurs
-//TODO Optimisation de la comm au besoin
+//TODO Optimiser la communication si necessaire
 
-char serialOutBuffer[300];	// Port série débug
+char serialOutBuffer[300];	// Buffer du port serie pour debug
 
 #define SERIAL_DATA_BUFFER_SIZE			1024
 #define ATCOMM_BUFFER_SIZE				1042
@@ -23,7 +23,7 @@ extern atComm txComm;
 extern atComm rxComm;
 extern uint8_t serialDataBuffer[SERIAL_DATA_BUFFER_SIZE];
 
-uint32_t timeoutCounter = 0; // reset after 0.5s (50 counts @ 100Hz)
+uint32_t timeoutCounter = 0; // remise a zero apres 0.5s (50 cycles @ 100Hz)
 bool successfulCommFlag = false;
 
 bool sendCurrentAngleFlag = false;
@@ -57,7 +57,7 @@ newIdCommand motorIdChangeBuffer;
 
 uint8_t serialDataBuffer[SERIAL_DATA_BUFFER_SIZE];
 
-// Variables de gestion de communication
+// Variables d'etat de communication
 char uart3_receivedChar;
 
 #define RS485_TX_ENABLE GPIO_PIN_SET
@@ -72,7 +72,7 @@ void setup()
 {
 	HAL_Delay(50);
 
-	//Idle au départ, config pour choisir idle ou brake
+	// Demarre a l'arret (PWM 0) pour choisir ensuite frein ou idle
 	TIM2->CCR4 = 0;
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_4);
 
@@ -85,9 +85,9 @@ void setup()
 	servo.init();
 	txComm.resetBuffer();
 	rxComm.resetBuffer();
-	// On débute le RS-485 en RX
+	// Demarre le RS-485 en mode RX
 	HAL_GPIO_WritePin(OUT_RS485_TXEN_GPIO_Port, OUT_RS485_TXEN_Pin, RS485_RX_ENABLE);
-	// Activation de l'interruption de réception du port série
+	// Active l'interruption de reception serie
 	HAL_UART_Receive_DMA(&huart3, (uint8_t*) &uart3_receivedChar, 1);
 }
 
@@ -125,7 +125,7 @@ void loop()
 
 }
 
-// Gestionnaire de la réception de message
+// Reception: parse les trames valides et met a jour flags/commandes
 void manageReceivedData()
 {
 	bool boolDataRx = false;
@@ -134,7 +134,7 @@ void manageReceivedData()
 	int dataStatus = rxComm.validateData();
 	if (dataStatus == ATCOMM_SUCCESS)
 	{
-		successfulCommFlag = true; // If any Servo message is successfully received, we acknowledge the master's activity
+		successfulCommFlag = true; // Si un message Servo est recu, on confirme l'activite du maitre
 		if (rxComm.getDestinationId()
 				== servo.reqMotorID() || rxComm.getDestinationId() == BROADCAST)
 		{
@@ -316,9 +316,9 @@ void manageReceivedData()
 						case dataType_TorqueConstantReq:
 							sendTorqueConstantFlag = true;
 							break;
-							// Implement other cases
+							// Ajouter autres cas si necessaire
 						default:
-							// Unknown data type, ignore or handle error
+							// Type de donnees inconnu, ignorer ou gerer l'erreur
 							break;
 						}
 					}
@@ -338,11 +338,11 @@ bool dataToSend()
 			|| sendCurrentIdFlag || sendMotorConfigInfoFlag);
 }
 
-// Gestionnaire de l'envoi de message
+// Emission: regroupe la telemetrie en un seul message
 void checkToSend() {
 
 	if (dataToSend()) {
-		// Envoi d'un nouveau message
+		// Envoie un nouveau message
 		txComm.startNewMessage(servo.reqMotorID(), MASTER_ID);
 		if (sendCurrentAngleFlag) {
 			sendCurrentAngleFlag = false;
@@ -421,7 +421,7 @@ void updateServoCommand() {
 
 
 
-// Gestionnaire des interruptions de réception du port série
+// IRQ UART RX: injecte les octets recus dans le decodeur
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	if(huart->Instance == huart3.Instance)
 	{
@@ -430,12 +430,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 	}
 }
 
-// Gestion du changement de mode du RS-485 après envoi du message
+// Apres TX, repasse le RS-485 en mode RX
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if(huart->Instance == huart3.Instance)
 	{
-		// On remet le RS 485 en mode RX
+		// Remet le RS-485 en RX
 		HAL_GPIO_WritePin(OUT_RS485_TXEN_GPIO_Port, OUT_RS485_TXEN_Pin, RS485_RX_ENABLE);
 	}
 }
@@ -474,7 +474,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			int stat = servo.m_encoder.refreshRawAngle_DMA();
 	//			if(stat != HAL_OK)
 //			{
-//				while(1); //TODO gestion erreurs
+//				while(1); //TODO gerer les erreurs encodeur
 //			}
 
 		}      
@@ -491,9 +491,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			}
 			else
 			{
-				//TODO remettre, TEMPORAIRE
+				//TODO Reactiver le reset de timeout une fois le watchdog comm valide
 				//			timeoutCounter += 1;
-				//			if (timeoutCounter >= 50) { // 0.5s for a timeout
+				//			if (timeoutCounter >= 50) { // 0.5s pour un timeout
 				//				timeoutCounter = 0;
 				//				rxComm.resetBuffer();
 				//				servo.reset();

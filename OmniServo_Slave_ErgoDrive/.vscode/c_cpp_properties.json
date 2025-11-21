@@ -5,6 +5,7 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_AS5600",
+                "C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_L_AtComm",
                 "C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_L_AtComm"
             ],
             "defines": [
