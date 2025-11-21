@@ -108,10 +108,10 @@ public:
 	void restoreFactorySettings(bool keepID);
 	ServoConfigInfo getConfigInfo();
 
-    //void asgPIDvalues(const float& p_kp, const float& p_kd, const float& p_ki);
-    void asgPIDpositionValues(const float& p_kp, const float& p_kd, const float& p_ki, const float& p_filter);
 
-    void asgPIDspeedValues(const float& p_kp, const float& p_kd, const float& p_ki);
+    void setPositionPID(const float& p_kp, const float& p_kd, const float& p_ki, const float& p_filter);
+
+    void setVelocityPID(const float& p_kp, const float& p_kd, const float& p_ki);
 
 	void changeMotorID(const uint8_t& p_motorID);
     void changeMode(ServoModes p_mode);
@@ -138,8 +138,6 @@ public:
     void computeSpeed();
     void updateCurrentAndTemp();
 
-
-    PositionController m_pController;
 	uint8_t reqMotorID();
     float reqCurrentAngle();
     float reqTargetAngle();
@@ -159,6 +157,7 @@ public:
     void setMaxAcceleration(float accelMax);
 
     teamAT_AS5600 m_encoder = teamAT_AS5600(&hi2c1);
+
     bool m_initDone = false;
 
 protected:
@@ -183,6 +182,7 @@ protected:
 private:
 
 
+
     uint8_t m_motorID;
 
     float m_sampleTime;
@@ -190,12 +190,6 @@ private:
     bool m_controlEnabled = false;
     ServoModes m_currentMode;
     WorkingUnits m_currentUnits;
-
-//    float m_kpp;
-//    float m_kdp;
-//    float m_kip;
-//    float m_taup;
-//    float m_PWMCountKip;
 
     float m_kpv;
     float m_kdv;
@@ -231,11 +225,12 @@ private:
     float m_currentCurrent;
     float m_currentTemp;
 
+    PositionController m_pController;
+
     backupStruct_t m_config;
 
     uint8_t m_idleMode = DEFAULT_IDLE_MODE;
     uint8_t m_driveMode = DEFAULT_DRIVE_MODE;
-
 
 
 };

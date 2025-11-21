@@ -225,7 +225,7 @@ void manageReceivedData()
 							rxComm.getData(dInfo, &rxPIDvalues, dInfo.dataLen);
 							if (rxPIDvalues.MotorID == servo.reqMotorID())
 							{
-								servo.asgPIDpositionValues(rxPIDvalues.kp,
+								servo.setPositionPID(rxPIDvalues.kp,
 										rxPIDvalues.kd, rxPIDvalues.ki,
 										rxPIDvalues.filter);
 							}
@@ -246,7 +246,7 @@ void manageReceivedData()
 							rxComm.getData(dInfo, &rxPIDvalues, dInfo.dataLen);
 							if (rxPIDvalues.MotorID == servo.reqMotorID())
 							{
-								servo.asgPIDspeedValues(rxPIDvalues.kp,
+								servo.setVelocityPID(rxPIDvalues.kp,
 										rxPIDvalues.kd, rxPIDvalues.ki);
 							}
 							break;

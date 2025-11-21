@@ -194,7 +194,7 @@ ServoConfigInfo OmniServo::getConfigInfo()
  * @param[in] p_kd Derivative gain
  * @param[in] p_ki Integral gain
  */
-void OmniServo::asgPIDpositionValues(const float& p_kp, const float& p_kd, const float& p_ki, const float& p_filter) {
+void OmniServo::setPositionPID(const float& p_kp, const float& p_kd, const float& p_ki, const float& p_filter) {
 
     m_pController.setGains(p_kp, p_ki, p_kd);
     m_pController.setPositionFilter(p_filter);
@@ -212,7 +212,7 @@ void OmniServo::asgPIDpositionValues(const float& p_kp, const float& p_kd, const
  * @param[in] p_kd Derivative gain
  * @param[in] p_ki Integral gain
  */
-void OmniServo::asgPIDspeedValues(const float& p_kp, const float& p_kd, 
+void OmniServo::setVelocityPID(const float& p_kp, const float& p_kd, 
     const float& p_ki) {
     m_kpv = p_kp;
     m_kdv = p_kd;
