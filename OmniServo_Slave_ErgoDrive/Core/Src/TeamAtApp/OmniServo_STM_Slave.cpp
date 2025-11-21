@@ -19,7 +19,7 @@
 #define RrefCurrentSense 1000 // Ohms
 #define currentScaling 0.000450
 #define VREF 3.3 //Volts
-#define nbTempValues 43
+#define nbTempValues 42
 double Aref = 0.0019;
 double Bref = 0.000118;
 double Cref = 0.0000004776;
@@ -35,15 +35,6 @@ float temps[nbTempValues] = {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 6
 
 #define sgn(x) ((x) < 0 ? -1 : ((x) > 0 ? 1 : 0)) // Function used to retreive number sign
 
-/**
- * @brief Default constructor of the OmniServo object
- */
-//OmniServo::OmniServo(uint32_t samplingTime){
-//
-//	//m_pController = PositionController(samplingTime); // 10Hz
-//	//m_pController.set
-//	loadDefaultConfig();
-//}
 
 /**
  * @brief Method to load the default configuration values into the object
@@ -126,15 +117,6 @@ void OmniServo::init() {
     	while(1);//TODO gestion erreurs
     }
 
-
-//    if(m_encoder.detectMagnet() == 0  && FORCE_MAGNET_DETECTION) {
-//        while(true) {
-//            if(m_encoder.detectMagnet() == 1 ) {
-//                break;
-//            }
-//            HAL_Delay(1000);
-//        }
-//    }
     centerInitialRead();
 
     m_initDone = true;
@@ -693,7 +675,7 @@ void OmniServo::updateCurrentAndTemp() {
 	if (hadc2.DMA_Handle->State != HAL_DMA_STATE_BUSY) {
 	    m_currentCurrent = dmap((double)m_adcBuffer[0], 0, 4095, 0, VREF) / (RrefCurrentSense * currentScaling);
 		float Vth = dmap((double)m_adcBuffer[1], 0, 4095, 0 ,VREF); //Volts
-		float Rth = 10000 * Vth/(3.3-Vth); //Ohm
+		float Rth = 10000 * Vth/(VREF-Vth); //Ohm
 		m_currentTemp = lookUpTemp(Rth);
 		HAL_ADC_Start_DMA(&hadc2, (uint32_t*)m_adcBuffer, 2);
 	}
