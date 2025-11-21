@@ -155,6 +155,8 @@ int cmd_saveServoConfigs(const char* argString);
 int cmd_changeDriveMode(const char* argString);
 int cmd_setMaxVelocity(const char* argString);
 int cmd_setMaxAcceleration(const char* argString);
+int cmd_setTempLimits(const char* argString);
+int cmd_setCurrentLimits(const char* argString);
 
 
     //const int numCliCommands = 27;
@@ -185,7 +187,9 @@ int cmd_setMaxAcceleration(const char* argString);
 			 &cmd_saveServoConfigs,
 			 &cmd_changeDriveMode,
 			 &cmd_setMaxVelocity,
-			 &cmd_setMaxAcceleration
+			 &cmd_setMaxAcceleration,
+			 &cmd_setTempLimits,
+			 &cmd_setCurrentLimits
          };
 
 	const int numCliCommands = sizeof(commands_func)/ sizeof(CLI_FUNC_PTR);
@@ -217,7 +221,9 @@ int cmd_setMaxAcceleration(const char* argString);
 			 "save",
 			 "setdrivemode",
 			 "setmaxvel",
-			 "setmaxaccel"
+			 "setmaxaccel",
+			 "settemplimit",
+			 "setcurrentlimit"
          };
 
 
@@ -681,7 +687,7 @@ int cmd_switchServo(const char* argString)
 	}
 	else
 	{
-		myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+		myCLI.print("\n\n\r--> [ERROR]: Argument not a number ");
 		myCLI.print("\n\n\r\tOption 1: Enter servo ID");
 		myCLI.print("\n\r\tOption 2: Enter nothing to switch to the next available servo\r\n\n");
 		return ERROR_ARGUMENT_ERROR;
@@ -703,7 +709,7 @@ int cmd_changeServoId(const char* argString)
 	}
 	else
 	{
-		myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+		myCLI.print("\n\n\r--> [ERROR]: Argument not a number ");
 		myCLI.print("\n\n\r\tOption 1: Enter desired servo ID\r\n\n");
 		return ERROR_ARGUMENT_ERROR;
 	}
@@ -864,7 +870,7 @@ int cmd_command(const char* argString)
 	}
 	else
 	{
-		myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+		myCLI.print("\n\n\r--> [ERROR]: Argument not a number ");
 		return ERROR_ARGUMENT_ERROR;
 	}
 
@@ -938,7 +944,7 @@ int cmd_setMaxVelocity(const char* argString)
 		}
 		else
 		{
-			myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+			myCLI.print("\n\n\r--> [ERROR]: Argument not a number ");
 			return ERROR_ARGUMENT_ERROR;
 		}
 
@@ -964,11 +970,55 @@ int cmd_setMaxAcceleration(const char* argString)
 		}
 		else
 		{
-			myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+			myCLI.print("\n\n\r--> [ERROR]: Argument not a number ");
 			return ERROR_ARGUMENT_ERROR;
 		}
 
 		return 0;
+}
+
+int cmd_setTempLimits(const char* argString)
+{
+	float warn, shutdown, hyst;
+	char output[160];
+
+	if (sscanf(argString, "%f %f %f", &warn, &shutdown, &hyst) == 3) {
+		TemperatureLimits limits;
+		limits.warningTempC = warn;
+		limits.shutdownTempC = shutdown;
+		limits.hysteresisC = hyst;
+		limits.MotorID = omniSequencer.activeServo()->getMotorID();
+
+		omniSequencer.activeServo()->setTemperatureLimits(limits);
+		sprintf(output, "\n\r-->Limites temperature envoyees: warn=%.1fC shutdown=%.1fC hysteresis=%.1fC\n\r", warn, shutdown, hyst);
+		myCLI.print(output);
+		return 0;
+	}
+
+	myCLI.print("\n\n\r--> [ERROR]: Arguments invalides. Usage: settemplimit <warn_C> <shutdown_C> <hysteresis_C>\r\n");
+	return ERROR_ARGUMENT_ERROR;
+}
+
+int cmd_setCurrentLimits(const char* argString)
+{
+	float cont, peak, peakMs;
+	char output[160];
+
+	if (sscanf(argString, "%f %f %f", &cont, &peak, &peakMs) == 3) {
+		CurrentLimits limits;
+		limits.continuousCurrentA = cont;
+		limits.peakCurrentA = peak;
+		limits.peakDurationMs = peakMs;
+		limits.MotorID = omniSequencer.activeServo()->getMotorID();
+
+		omniSequencer.activeServo()->setCurrentLimits(limits);
+		sprintf(output, "\n\r-->Limites courant envoyees: continu=%.2fA crete=%.2fA duree=%.0fms\n\r", cont, peak, peakMs);
+		myCLI.print(output);
+		return 0;
+	}
+
+	myCLI.print("\n\n\r--> [ERROR]: Arguments invalides. Usage: setcurrentlimit <continu_A> <crete_A> <duree_ms>\r\n");
+	return ERROR_ARGUMENT_ERROR;
 }
 
 
@@ -1088,7 +1138,7 @@ int cmd_getMotorInfo(const char* argString)
 	}
 	else
 	{
-		myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+		myCLI.print("\n\n\r--> [ERROR]: Argument not a number ");
 		myCLI.print("\n\n\r\tOption 1: Enter servo ID");
 		return ERROR_ARGUMENT_ERROR;
 	}

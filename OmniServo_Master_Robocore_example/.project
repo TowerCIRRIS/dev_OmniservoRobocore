@@ -37,6 +37,16 @@
 			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_B_CLI/src/V1.1</location>
 		</link>
 		<link>
+			<name>Common</name>
+			<type>2</type>
+			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_H_Omniservo2/Common</location>
+		</link>
+		<link>
+			<name>Master</name>
+			<type>2</type>
+			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_H_Omniservo2/Master</location>
+		</link>
+		<link>
 			<name>TeamAT_B_Basic</name>
 			<type>2</type>
 			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_B_Basic</location>
@@ -50,11 +60,6 @@
 			<name>TeamAT_B_UartManager</name>
 			<type>2</type>
 			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_B_UartManager</location>
-		</link>
-		<link>
-			<name>TeamAT_H_Omniservo2</name>
-			<type>2</type>
-			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_H_Omniservo2</location>
 		</link>
 		<link>
 			<name>TeamAT_L_AtComm</name>
