@@ -982,7 +982,7 @@ int cmd_setTempLimits(const char* argString)
 	float warn, shutdown, hyst;
 	char output[160];
 
-	if (sscanf(argString, "%f %f %f", &warn, &shutdown, &hyst) == 3) {
+	if (sscanf(argString, "%f/%f/%f", &warn, &shutdown, &hyst) == 3) {
 		TemperatureLimits limits;
 		limits.warningTempC = warn;
 		limits.shutdownTempC = shutdown;
@@ -995,7 +995,7 @@ int cmd_setTempLimits(const char* argString)
 		return 0;
 	}
 
-	myCLI.print("\n\n\r--> [ERROR]: Arguments invalides. Usage: settemplimit <warn_C> <shutdown_C> <hysteresis_C>\r\n");
+	myCLI.print("\n\n\r--> [ERROR]: Arguments invalides. Usage: settemplimit <warn_C>/<shutdown_C>/<hysteresis_C>\r\n");
 	return ERROR_ARGUMENT_ERROR;
 }
 
@@ -1004,7 +1004,7 @@ int cmd_setCurrentLimits(const char* argString)
 	float cont, peak, peakMs;
 	char output[160];
 
-	if (sscanf(argString, "%f %f %f", &cont, &peak, &peakMs) == 3) {
+	if (sscanf(argString, "%f/%f/%f", &cont, &peak, &peakMs) == 3) {
 		CurrentLimits limits;
 		limits.continuousCurrentA = cont;
 		limits.peakCurrentA = peak;
@@ -1017,7 +1017,7 @@ int cmd_setCurrentLimits(const char* argString)
 		return 0;
 	}
 
-	myCLI.print("\n\n\r--> [ERROR]: Arguments invalides. Usage: setcurrentlimit <continu_A> <crete_A> <duree_ms>\r\n");
+	myCLI.print("\n\n\r--> [ERROR]: Arguments invalides. Usage: setcurrentlimit <continu_A>/<crete_A>/<duree_ms>\r\n");
 	return ERROR_ARGUMENT_ERROR;
 }
 
