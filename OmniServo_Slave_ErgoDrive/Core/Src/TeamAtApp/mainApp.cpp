@@ -506,7 +506,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 	
 	if (htim == &htim3) {
 
-		if(servo.m_initDone)
+		if(servo.isInitDone())
 		{
 			int stat = servo.m_encoder.refreshRawAngle_DMA();
 	//			if(stat != HAL_OK)

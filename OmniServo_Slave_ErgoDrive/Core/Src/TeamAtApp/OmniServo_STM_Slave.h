@@ -158,7 +158,7 @@ public:
 
     teamAT_AS5600 m_encoder = teamAT_AS5600(&hi2c1);
 
-    bool m_initDone = false;
+    bool isInitDone() const;
 
 protected:
 
@@ -182,6 +182,7 @@ protected:
 private:
 
 
+    bool m_initDone = false;
 
     uint8_t m_motorID;
 
@@ -231,7 +232,6 @@ private:
 
     uint8_t m_idleMode = DEFAULT_IDLE_MODE;
     uint8_t m_driveMode = DEFAULT_DRIVE_MODE;
-
 
 };
 

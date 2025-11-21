@@ -140,6 +140,11 @@ void OmniServo::init() {
     m_initDone = true;
 }
 
+// Returns true when init() completed successfully
+bool OmniServo::isInitDone() const {
+    return m_initDone;
+}
+
 
 void OmniServo::saveConfigToFlash()
 {
