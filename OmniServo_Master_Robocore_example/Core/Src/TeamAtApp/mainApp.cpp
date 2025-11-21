@@ -153,10 +153,12 @@ int cmd_restoreFactory(const char* argString);
 int cmd_syncServoConfigs(const char* argString);
 int cmd_saveServoConfigs(const char* argString);
 int cmd_changeDriveMode(const char* argString);
+int cmd_setMaxVelocity(const char* argString);
+int cmd_setMaxAcceleration(const char* argString);
 
 
-    const int numCliCommands = 25;
-	CLI_FUNC_PTR commands_func[numCliCommands]{
+    //const int numCliCommands = 27;
+	CLI_FUNC_PTR commands_func[]{
     		 &cmd_getMotorInfo,
 			 &cmd_findServos,
 			 &cmd_changeMode,
@@ -181,12 +183,15 @@ int cmd_changeDriveMode(const char* argString);
 			 &cmd_restoreFactory,
 			 &cmd_syncServoConfigs,
 			 &cmd_saveServoConfigs,
-			 &cmd_changeDriveMode
-
+			 &cmd_changeDriveMode,
+			 &cmd_setMaxVelocity,
+			 &cmd_setMaxAcceleration
          };
 
+	const int numCliCommands = sizeof(commands_func)/ sizeof(CLI_FUNC_PTR);
+
     const char *commands_str[numCliCommands] = {
-    		 "getmotorinfo",
+    		 "printconfig",
 			 "findservos",
 			 "changemode",
 			 "stop",
@@ -194,23 +199,25 @@ int cmd_changeDriveMode(const char* argString);
 			 "reset360",
 			 "setzero",
 			 "setzeroref",
-			 "setcurrentangle",
-			 "switchdirection",
+			 "setangle",
+			 "switchdir",
 			 "setcenterangle",
 			 "settorqueconstant",
 			 "setturns",
-			 "resetslave",
+			 "reset",
 			 "setpid",
 			 "switchunits",
-			 "toggleprint",
+			 "p",
 			 "switchservo",
-			 "changeservoid",
+			 "setservoid",
 			 "listservos",
 			 "c",
 			 "restorefactory",
-			 "syncservoconfigs",
-			 "saveconfigs",
-			 "changedrivemode"
+			 "sync",
+			 "save",
+			 "setdrivemode",
+			 "setmaxvel",
+			 "setmaxaccel"
          };
 
 
@@ -220,9 +227,6 @@ void setup() {
 
 	cli_init(&usbSerialOut);
 	HAL_Delay(1000);
-
-
-
 
 	// Power up device on port 1
 	HAL_GPIO_WritePin(OUT_PORT1_POWER_GPIO_Port, OUT_PORT1_POWER_Pin, GPIO_PIN_SET);
@@ -285,20 +289,27 @@ void loop() {
 
 	// Printing current servo values if printing is enabled
 	if (printValues) {
-		if (HAL_GetTick() - previousMillis5hz >= 200) {
+		if (HAL_GetTick() - previousMillis5hz >= 10) {
 			previousMillis5hz = HAL_GetTick();
 			if (printValues) {
 				actuator_Omniservo* currentServo = omniSequencer.activeServo();
 				if (currentServo->getCurrentUnits() == DEGREES) {
 					sprintf(main_debugSerialOutBuffer,
-							"ID: %d Commande : %.2f ° Angle : %.2f °  Vitesse : %.2f °/s  Courant : %.3f A  Couple : %.2f Nm  Temp : %.2f °C\r\n",
-							currentServo->getMotorID(),
-							currentServo->getAngleCommand().deg(),
-							currentServo->getAngle().deg(),
-							currentServo->getCurrentSpeed(),
-							currentServo->getCurrentCurrent(),
-							currentServo->getCurrentTorque(),
-							currentServo->getCurrentTemp());
+						"ID:%d Commande:%.2f ° Angle:%.2f ° Vitesse:%.2f °/s\r\n",
+						currentServo->getMotorID(),
+						currentServo->getAngleCommand().deg(),
+						currentServo->getAngle().deg(),
+						currentServo->getCurrentSpeed()
+						);
+//					sprintf(main_debugSerialOutBuffer,
+//							"ID: %d Commande : %.2f ° Angle : %.2f °  Vitesse : %.2f °/s  Courant : %.3f A  Couple : %.2f Nm  Temp : %.2f °C\r\n",
+//							currentServo->getMotorID(),
+//							currentServo->getAngleCommand().deg(),
+//							currentServo->getAngle().deg(),
+//							currentServo->getCurrentSpeed(),
+//							currentServo->getCurrentCurrent(),
+//							currentServo->getCurrentTorque(),
+//							currentServo->getCurrentTemp());
 				}
 				else {
 					sprintf(main_debugSerialOutBuffer,
@@ -494,7 +505,7 @@ int cmd_setPID(const char* argString)
 	char input[50];
 	float floatGain;
 
-	float kp, ki, kd;
+	float kp, ki, kd, filter;
 	int state = 0;
 
 	if(argString[0] == 'v')
@@ -541,8 +552,17 @@ int cmd_setPID(const char* argString)
 					myCLI.print("\n\r<-- Enter kd:");
 
 				}
+//				else if(state == 2)
+//				{
+//					myCLI.print(input);
+//					kd = floatGain;
+//					state = 3;
+//					startTime = atGetSysTick_ms();
+//					myCLI.print("\n\r<-- Enter Filter (0.0-1.0):");
+//				}
 				else if(state == 2)
 				{
+
 					myCLI.print(input);
 					kd = floatGain;
 					state = 3;
@@ -550,7 +570,7 @@ int cmd_setPID(const char* argString)
 
 					if(argString[0] == 'v')
 					{
-						sprintf(output, "\n\r--> Sending Vel. PID : P:%.2f I:%.2f D:%.2f\r\n",kp,ki,kd);
+						sprintf(output, "\n\r--> Sending Vel. PID : P:%.2f I:%.2f D:%.2f (filter not used)\r\n",kp,ki,kd);
 						omniSequencer.activeServo()->setVelocityKpGain(kp);
 						omniSequencer.activeServo()->setVelocityKiGain(ki);
 						omniSequencer.activeServo()->setVelocityKdGain(kd);
@@ -559,15 +579,16 @@ int cmd_setPID(const char* argString)
 					{
 						sprintf(output, "\n\r--> Sending Pos. PID : P:%.2f I:%.2f D:%.2f\r\n",kp,ki,kd);
 
-
 						omniSequencer.activeServo()->setKpGain(kp);
 						omniSequencer.activeServo()->setKiGain(ki);
 						omniSequencer.activeServo()->setKdGain(kd);
+						//omniSequencer.activeServo()->setPositionFilter(filter);
 					}
 					myCLI.print(output);
 
 
 					return 0;
+
 				}
 			}
 			else
@@ -723,7 +744,7 @@ void printServoConfig(actuator_Omniservo* servo)
 	myCLI.print(output);
 	delay(1);
 
-	sprintf(output, "\n\r\tPosition PID: Kp: %.2f \tKi: %.2f \tKd: %.2f",configInfo.kpp, configInfo.kip, configInfo.kdp);
+	sprintf(output, "\n\r\tPosition PID: Kp: %.2f \tKi: %.2f \tKd: %.2f \tFilter(tau): %.4f",configInfo.kpp, configInfo.kip, configInfo.kdp, configInfo.positionFilter);
 	myCLI.print(output);
 	delay(1);
 
@@ -886,6 +907,60 @@ int cmd_changeDriveMode(const char* argString)
 
 	}
 	return 0;
+}
+
+int cmd_setMaxVelocity(const char* argString)
+{
+	float commandValue = 0;
+	char output[130];
+
+	if(parseFloat(argString, commandValue)){
+
+			sprintf(output, "\n\rSetting Max velocity to  %f for servo ID[%d]", commandValue, omniSequencer.activeServo()->getMotorID());
+			myCLI.print(output);
+
+			actuatorError_rct errorCode = omniSequencer.activeServo()->setVelocityLimit_HW(angleRad_rct::fromDegrees(commandValue));
+			if(errorCode != ERROR_ROBOCORE_ACTUATOR_NONE)
+			{
+				sprintf(output, "\n\r--> [ERROR]: Sending command failed with error code %d", (int)errorCode);
+
+				myCLI.print(output);
+				return errorCode;
+			}
+		}
+		else
+		{
+			myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+			return ERROR_ARGUMENT_ERROR;
+		}
+
+		return 0;
+}
+
+int cmd_setMaxAcceleration(const char* argString)
+{
+	float commandValue = 0;
+	char output[130];
+
+		if(parseFloat(argString, commandValue)){
+
+			actuatorError_rct errorCode = omniSequencer.activeServo()->setAccelerationLimit_HW(angleRad_rct::fromDegrees(commandValue));
+
+			if(errorCode != ERROR_ROBOCORE_ACTUATOR_NONE)
+			{
+				sprintf(output, "\n\r--> [ERROR]: Sending command failed with error code %d", (int)errorCode);
+
+				myCLI.print(output);
+				return errorCode;
+			}
+		}
+		else
+		{
+			myCLI.print("\n\n\r--> [ERROR]: Argument not a number");
+			return ERROR_ARGUMENT_ERROR;
+		}
+
+		return 0;
 }
 
 

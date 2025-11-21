@@ -10,9 +10,15 @@
 #ifndef TEAMATAPP_MAINAPP_H_
 #define TEAMATAPP_MAINAPP_H_
 
-//#include <OmniServo.h.old>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void setup();
 void loop();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* TEAMATAPP_MAINAPP_H_ */
