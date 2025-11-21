@@ -35,6 +35,8 @@ bool sendCurrentTempFlag = false;
 bool sendTorqueConstantFlag = false;
 bool sendCurrentIdFlag = false;
 bool sendMotorConfigInfoFlag = false;
+bool sendTemperatureLimitsFlag = false;
+bool sendCurrentLimitsFlag = false;
 
 
 uint8_t speedFreqCount = 0;
@@ -131,6 +133,8 @@ void manageReceivedData()
 	bool boolDataRx = false;
 	uint8_t uint8DataRx = 0;
 	float floatDataRx = 0;
+	TemperatureLimits rxTemperatureLimits;
+	CurrentLimits rxCurrentLimits;
 	int dataStatus = rxComm.validateData();
 	if (dataStatus == ATCOMM_SUCCESS)
 	{
@@ -174,6 +178,12 @@ void manageReceivedData()
 						case dataType_RequestMotorConfigInfo:
 							sendMotorConfigInfoFlag = true;
 							break;
+						case dataType_TemperatureLimitsReq:
+							sendTemperatureLimitsFlag = true;
+							break;
+						case dataType_CurrentLimitsReq:
+							sendCurrentLimitsFlag = true;
+							break;
 						case dataType_RestoreFactorySettings:
 							servo.restoreFactorySettings(KEEP_ID);
 							break;
@@ -204,6 +214,20 @@ void manageReceivedData()
 						case dataType_setMaxAcceleration:
 							rxComm.getData(dInfo, &floatDataRx, dInfo.dataLen);
 							servo.setMaxAcceleration(floatDataRx);
+							break;
+						case dataType_TemperatureLimits:
+							rxComm.getData(dInfo, &rxTemperatureLimits, dInfo.dataLen);
+							if (rxTemperatureLimits.MotorID == servo.reqMotorID())
+							{
+								servo.setTemperatureLimits(rxTemperatureLimits);
+							}
+							break;
+						case dataType_CurrentLimits:
+							rxComm.getData(dInfo, &rxCurrentLimits, dInfo.dataLen);
+							if (rxCurrentLimits.MotorID == servo.reqMotorID())
+							{
+								servo.setCurrentLimits(rxCurrentLimits);
+							}
 							break;
 						case dataType_VelocityPIDvalues:
 							rxComm.getData(dInfo, &rxPIDvalues, dInfo.dataLen);
@@ -335,7 +359,8 @@ bool dataToSend()
 	return (sendCurrentAngleFlag || sendCurrentSpeedFlag || sendCurrentModeFlag
 			|| sendCurrentUnitsFlag || sendCurrentCurrentFlag
 			|| sendCurrentTempFlag || sendTorqueConstantFlag
-			|| sendCurrentIdFlag || sendMotorConfigInfoFlag);
+			|| sendCurrentIdFlag || sendMotorConfigInfoFlag
+			|| sendTemperatureLimitsFlag || sendCurrentLimitsFlag);
 }
 
 // Emission: regroupe la telemetrie en un seul message
@@ -390,6 +415,16 @@ void checkToSend() {
 			ServoConfigInfo configData = servo.getConfigInfo();
 			txComm.addData(dataType_motorConfigInfo, sizeof(configData), &configData);
 
+		}
+		if(sendTemperatureLimitsFlag) {
+			sendTemperatureLimitsFlag = false;
+			TemperatureLimits tempLimits = servo.reqTemperatureLimits();
+			txComm.addData(dataType_TemperatureLimitsReq, sizeof(tempLimits), &tempLimits);
+		}
+		if(sendCurrentLimitsFlag) {
+			sendCurrentLimitsFlag = false;
+			CurrentLimits currentLimits = servo.reqCurrentLimits();
+			txComm.addData(dataType_CurrentLimitsReq, sizeof(currentLimits), &currentLimits);
 		}
 
 		txComm.setLastPacketStatus();

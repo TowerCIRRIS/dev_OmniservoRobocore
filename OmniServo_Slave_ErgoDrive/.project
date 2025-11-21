@@ -32,6 +32,16 @@
 	</natures>
 	<linkedResources>
 		<link>
+			<name>Common</name>
+			<type>2</type>
+			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_H_Omniservo2/Common</location>
+		</link>
+		<link>
+			<name>Slave</name>
+			<type>2</type>
+			<location>C:/Workspaces/Stm32/TeamAt_Robocore/TeamAtLibs/TeamAT_H_Omniservo2/Slave</location>
+		</link>
+		<link>
 			<name>TeamAT_AS5600</name>
 			<type>2</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TeamATLibs/TeamAT_AS5600</locationURI>
