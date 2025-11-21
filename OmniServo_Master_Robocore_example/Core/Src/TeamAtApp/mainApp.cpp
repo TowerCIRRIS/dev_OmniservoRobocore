@@ -795,6 +795,14 @@ void printServoConfig(actuator_Omniservo* servo)
 	myCLI.print(output);
 	delay(1);
 
+	sprintf(output, "\n\r\tTemp warning/shutdown/hysteresis: %.1f / %.1f / %.1f C",configInfo.temperatureWarning, configInfo.temperatureShutdown, configInfo.temperatureHysteresis);
+	myCLI.print(output);
+	delay(1);
+
+	sprintf(output, "\n\r\tCourant continu/crete/duree crete: %.2f / %.2f A, %.0f ms",configInfo.currentContinuous, configInfo.currentPeak, configInfo.currentPeakTimeMs);
+	myCLI.print(output);
+	delay(1);
+
 
 
 
